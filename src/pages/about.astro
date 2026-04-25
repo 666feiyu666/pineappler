@@ -1,0 +1,42 @@
+---
+import Layout from "../components/Layout.astro";
+import PageIntro from "../components/PageIntro.astro";
+import { aboutContent } from "../data/site";
+---
+
+<Layout title="Pineappler | About" description="个人简介、研究兴趣与可继续扩展的 profile 框架。">
+  <PageIntro
+    eyebrow="About"
+    title={aboutContent.name}
+    intro={aboutContent.intro}
+  />
+
+  <section class="about-grid">
+    <article class="content-block">
+      <h2>Profile</h2>
+      <p>{aboutContent.profile}</p>
+    </article>
+
+    <article class="content-block">
+      <h2>Research Interests</h2>
+      <ul class="plain-list">
+        {aboutContent.researchInterests.map((item) => <li>{item}</li>)}
+      </ul>
+    </article>
+
+    <article class="content-block">
+      <h2>Education / Experience</h2>
+      <p>{aboutContent.experience}</p>
+    </article>
+
+    <article class="content-block">
+      <h2>Writing / Projects</h2>
+      <p>{aboutContent.writing}</p>
+    </article>
+
+    <article class="content-block">
+      <h2>Contact</h2>
+      <p>{aboutContent.contact}</p>
+    </article>
+  </section>
+</Layout>

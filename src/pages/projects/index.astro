@@ -1,0 +1,30 @@
+---
+import { getCollection } from "astro:content";
+import EntryCard from "../../components/EntryCard.astro";
+import Layout from "../../components/Layout.astro";
+import PageIntro from "../../components/PageIntro.astro";
+import { publishedEntries, sortEntries } from "../../lib/content";
+
+const entries = sortEntries(publishedEntries(await getCollection("projects")));
+---
+
+<Layout title="Pineappler | Projects" description="按最新时间排列的项目列表。">
+  <PageIntro eyebrow="Projects" title="Latest projects" />
+
+  <section class="section-block">
+    <div class="entry-grid">
+      {entries.map((entry) => (
+        <EntryCard
+          href={`/projects/${entry.slug}/`}
+          title={entry.data.title}
+          description={entry.data.description}
+          date={entry.data.date}
+          meta={[entry.data.status]}
+          tags={entry.data.tags}
+          imagePath={entry.data.imagePath}
+          imageAlt={entry.data.imageAlt}
+        />
+      ))}
+    </div>
+  </section>
+</Layout>

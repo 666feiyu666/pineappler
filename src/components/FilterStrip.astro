@@ -1,0 +1,21 @@
+---
+interface Item {
+  href: string;
+  label: string;
+  active?: boolean;
+}
+
+interface Props {
+  items: Item[];
+}
+
+const { items } = Astro.props;
+---
+
+<nav class="filter-strip" aria-label="Section filters">
+  {items.map((item) => (
+    <a href={item.href} class:list={["filter-pill", item.active && "active"]}>
+      {item.label}
+    </a>
+  ))}
+</nav>

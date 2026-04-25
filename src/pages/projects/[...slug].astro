@@ -1,0 +1,49 @@
+---
+import { getCollection } from "astro:content";
+import Layout from "../../components/Layout.astro";
+import { formatDate, publishedEntries } from "../../lib/content";
+
+export async function getStaticPaths() {
+  const entries = publishedEntries(await getCollection("projects"));
+  return entries.map((entry) => ({
+    params: { slug: entry.slug },
+    props: { entry }
+  }));
+}
+
+const { entry } = Astro.props;
+const { Content } = await entry.render();
+---
+
+<Layout title={`${entry.data.title} | Projects`} description={entry.data.description}>
+  <article class="content-block">
+    <p class="entry-date">{formatDate(entry.data.date)}</p>
+    <h1 class="page-title">{entry.data.title}</h1>
+    <p class="page-summary">{entry.data.description}</p>
+    {entry.data.imagePath && (
+      <figure class="project-hero">
+        <img src={entry.data.imagePath} alt={entry.data.imageAlt || entry.data.title} loading="eager" />
+      </figure>
+    )}
+    <div class="meta-grid">
+      <div>
+        <span>Status</span>
+        <strong>{entry.data.status}</strong>
+      </div>
+      {entry.data.link && (
+        <div>
+          <span>Link</span>
+          <a href={entry.data.link}>Project page</a>
+        </div>
+      )}
+    </div>
+    {entry.data.tags.length > 0 && (
+      <ul class="tag-list">
+        {entry.data.tags.map((tag: string) => <li>{tag}</li>)}
+      </ul>
+    )}
+    <div class="prose-block">
+      <Content />
+    </div>
+  </article>
+</Layout>

@@ -1,0 +1,60 @@
+---
+import { getCollection } from "astro:content";
+import EntryCard from "../../../components/EntryCard.astro";
+import FilterStrip from "../../../components/FilterStrip.astro";
+import Layout from "../../../components/Layout.astro";
+import PageIntro from "../../../components/PageIntro.astro";
+import {
+  publishedEntries,
+  sortEntries,
+  toParam,
+  uniqueValues
+} from "../../../lib/content";
+
+const allEntries = sortEntries(publishedEntries(await getCollection("writing")));
+const types = uniqueValues(allEntries.map((entry) => entry.data.type));
+
+export async function getStaticPaths() {
+  const entries = sortEntries(publishedEntries(await getCollection("writing")));
+  const types = uniqueValues(entries.map((entry) => entry.data.type));
+  return types.map((type) => ({
+    params: { type: toParam(type) },
+    props: {
+      type,
+      entries: entries.filter((entry) => entry.data.type === type)
+    }
+  }));
+}
+
+const { type, entries } = Astro.props;
+---
+
+<Layout title={`Pineappler | ${type}`} description={`${type} 类型下的 writing 条目。`}>
+  <PageIntro eyebrow="Writing" title={type} />
+  <FilterStrip
+    items={[
+      { href: "/writing", label: "全部" },
+      ...types.map((item) => ({
+        href: `/writing/type/${toParam(item)}/`,
+        label: item,
+        active: item === type
+      }))
+    ]}
+  />
+
+  <section class="section-block">
+    <div class="entry-grid">
+      {entries.map((entry) => (
+        <EntryCard
+          href={`/writing/${entry.slug}/`}
+          title={entry.data.title}
+          description={entry.data.description}
+          date={entry.data.date}
+          meta={[entry.data.type]}
+          badge={entry.data.format === "pdf" ? "PDF" : undefined}
+          tags={entry.data.tags}
+        />
+      ))}
+    </div>
+  </section>
+</Layout>

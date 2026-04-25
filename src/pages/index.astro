@@ -1,0 +1,69 @@
+---
+import { getCollection } from "astro:content";
+import Layout from "../components/Layout.astro";
+import { homeImage, homeQuote } from "../data/site";
+import { publishedEntries, sortEntries } from "../lib/content";
+
+const latestNote = sortEntries(publishedEntries(await getCollection("notes")))[0];
+const latestWriting = sortEntries(publishedEntries(await getCollection("writing")))[0];
+const latestProject = sortEntries(publishedEntries(await getCollection("projects")))[0];
+---
+
+<Layout title="Pineappler | Home" description="个人写作、研究兴趣与项目记录。">
+  <section class="home-stage">
+    <div class="quote-panel">
+      <p class="eyebrow">Home</p>
+      <blockquote class="home-quote">{homeQuote.text}</blockquote>
+      <p class="quote-source">{homeQuote.source}</p>
+
+      <div class="home-links">
+        <a href="/about">About</a>
+        <a href="/notes">Notes</a>
+        <a href="/writing">Writing</a>
+        <a href="/projects">Projects</a>
+      </div>
+    </div>
+
+    <figure class="home-image-frame">
+      {homeImage?.path ? (
+        <>
+          <img
+            class="home-hero-image"
+            src={homeImage.path}
+            alt={homeImage.alt || "Home visual"}
+            loading="eager"
+          />
+          <figcaption>{homeImage.alt || "Home image"}</figcaption>
+        </>
+      ) : (
+        <>
+          <div class="image-placeholder" role="img" aria-label="Image placeholder">
+            <span>Image Placeholder</span>
+          </div>
+          <figcaption>Placeholder image slot</figcaption>
+        </>
+      )}
+    </figure>
+  </section>
+
+  <section class="home-recent">
+    {latestNote && (
+      <a class="recent-link" href={`/notes/${latestNote.slug}/`}>
+        <span>Latest note</span>
+        <strong>{latestNote.data.title}</strong>
+      </a>
+    )}
+    {latestWriting && (
+      <a class="recent-link" href={`/writing/${latestWriting.slug}/`}>
+        <span>Latest writing</span>
+        <strong>{latestWriting.data.title}</strong>
+      </a>
+    )}
+    {latestProject && (
+      <a class="recent-link" href={`/projects/${latestProject.slug}/`}>
+        <span>Latest project</span>
+        <strong>{latestProject.data.title}</strong>
+      </a>
+    )}
+  </section>
+</Layout>

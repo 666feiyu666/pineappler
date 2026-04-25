@@ -1,0 +1,22 @@
+{
+  "name": "pineappler-site",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "predev": "npm run sync:content",
+    "dev": "node ./scripts/dev-with-studio.mjs",
+    "dev:site": "ASTRO_TELEMETRY_DISABLED=1 astro dev",
+    "dev:studio-server": "node ./scripts/studio-server.mjs",
+    "start": "ASTRO_TELEMETRY_DISABLED=1 astro dev",
+    "sync:content": "node ./scripts/sync-content.mjs",
+    "import:note": "node ./scripts/import-note.mjs",
+    "import:writing": "node ./scripts/import-writing.mjs",
+    "prebuild": "npm run sync:content",
+    "build": "ASTRO_TELEMETRY_DISABLED=1 astro build",
+    "preview": "ASTRO_TELEMETRY_DISABLED=1 astro preview"
+  },
+  "dependencies": {
+    "astro": "^5.6.1"
+  }
+}

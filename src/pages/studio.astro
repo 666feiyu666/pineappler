@@ -1,0 +1,308 @@
+---
+import Layout from "../components/Layout.astro";
+
+const studioEnabled = import.meta.env.DEV;
+---
+
+<Layout title="Pineappler | Studio" description="本地内容工作台。">
+  {
+    studioEnabled ? (
+      <section class="studio-app">
+        <aside class="studio-sidebar">
+          <section class="studio-panel">
+            <div class="studio-panel-head">
+              <h2>Workspace</h2>
+            </div>
+            <p class="studio-status" data-status>正在连接本地 Studio backend。</p>
+            <p class="studio-hint">当前开发服务器会直接使用这个仓库作为工作区，不再需要手动选择根目录。</p>
+          </section>
+
+          <nav class="studio-section-nav" aria-label="Studio sections">
+            <button type="button" class="studio-section-link is-active" data-section-target="home">Home</button>
+            <button type="button" class="studio-section-link" data-section-target="about">About</button>
+            <button type="button" class="studio-section-link" data-section-target="notes">Notes</button>
+            <button type="button" class="studio-section-link" data-section-target="writing">Writing</button>
+            <button type="button" class="studio-section-link" data-section-target="projects">Projects</button>
+            <button type="button" class="studio-section-link" data-section-target="workflow">Workflow</button>
+          </nav>
+
+          <section class="studio-panel">
+            <h2>Workflow</h2>
+            <p class="studio-hint">本地编辑完成后，可以在 Workflow 中直接触发 Build 和 Publish。</p>
+          </section>
+        </aside>
+
+        <div class="studio-main">
+          <section class="studio-section is-active" data-section="home">
+            <div class="page-intro">
+              <p class="eyebrow">Studio / Home</p>
+              <h1>Home</h1>
+              <p class="page-intro-copy">编辑首页的作者信息与格言内容。</p>
+            </div>
+
+            <form class="studio-panel" data-form="home-editor">
+              <div class="studio-panel-head">
+                <h2>Home content</h2>
+                <button type="submit" class="studio-button">保存 Home</button>
+              </div>
+              <div class="studio-fields">
+                <label><span>Author</span><input name="author" required /></label>
+                <label><span>Email</span><input name="email" required /></label>
+                <label><span>Location</span><input name="location" required /></label>
+                <label><span>Home quote</span><textarea name="homeQuote" rows="4"></textarea></label>
+                <label><span>Quote source</span><input name="homeQuoteSource" /></label>
+                <input type="hidden" name="existingImagePath" />
+                <label><span>Image alt</span><input name="homeImageAlt" placeholder="首页图片说明" /></label>
+                <label><span>Upload / Replace image</span><input name="homeImageFile" type="file" accept=".jpg,.jpeg,.png,.webp,.gif,image/jpeg,image/png,image/webp,image/gif" /></label>
+                <p class="studio-file-meta" data-home-image-meta>当前未设置首页图片。</p>
+              </div>
+            </form>
+          </section>
+
+          <section class="studio-section" data-section="about">
+            <div class="page-intro">
+              <p class="eyebrow">Studio / About</p>
+              <h1>About</h1>
+              <p class="page-intro-copy">编辑个人介绍页的各个文字区块。</p>
+            </div>
+
+            <form class="studio-panel" data-form="about-editor">
+              <div class="studio-panel-head">
+                <h2>About content</h2>
+                <button type="submit" class="studio-button">保存 About</button>
+              </div>
+              <div class="studio-fields">
+                <label><span>Name</span><input name="aboutName" required /></label>
+                <label><span>Intro</span><textarea name="aboutIntro" rows="4"></textarea></label>
+                <label><span>Profile</span><textarea name="aboutProfile" rows="5"></textarea></label>
+                <label><span>Research interests</span><textarea name="aboutResearch" rows="6" placeholder="每行一个"></textarea></label>
+                <label><span>Education / Experience</span><textarea name="aboutExperience" rows="4"></textarea></label>
+                <label><span>Writing / Projects</span><textarea name="aboutWriting" rows="4"></textarea></label>
+                <label><span>Contact</span><textarea name="aboutContact" rows="4"></textarea></label>
+              </div>
+            </form>
+          </section>
+
+          <section class="studio-section" data-section="notes">
+            <div class="page-intro">
+              <p class="eyebrow">Studio / Notes</p>
+              <h1>Notes</h1>
+              <p class="page-intro-copy">管理 topic、已有 notes、新建与导入操作。</p>
+            </div>
+
+            <div class="studio-grid studio-grid-wide">
+              <section class="studio-panel">
+                <div class="studio-panel-head">
+                  <h2>Topics</h2>
+                </div>
+                <div class="studio-chip-list" data-list="topics"></div>
+              </section>
+
+              <section class="studio-panel">
+                <div class="studio-panel-head">
+                  <h2>Existing notes</h2>
+                  <button type="button" class="studio-button" data-action="new-note">新建笔记</button>
+                </div>
+                <div class="studio-entry-list" data-list="notes"></div>
+              </section>
+            </div>
+
+            <div class="studio-grid">
+              <form class="studio-panel" data-form="note-topic">
+                <div class="studio-panel-head">
+                  <h2>New topic</h2>
+                  <button type="submit" class="studio-button">创建主题</button>
+                </div>
+                <div class="studio-fields">
+                  <label><span>Topic name</span><input name="topicName" required placeholder="例如：生命叙事" /></label>
+                </div>
+              </form>
+
+              <form class="studio-panel" data-form="note-import">
+                <div class="studio-panel-head">
+                  <h2>Import Markdown</h2>
+                  <button type="submit" class="studio-button">导入</button>
+                </div>
+                <div class="studio-fields">
+                  <label><span>Topic</span><input name="topic" list="note-topic-list" required /></label>
+                  <label><span>Markdown file</span><input name="file" type="file" accept=".md,text/markdown" required /></label>
+                  <label><span>Supporting images</span><input name="images" type="file" accept=".jpg,.jpeg,.png,.webp,.gif,image/jpeg,image/png,image/webp,image/gif" multiple /></label>
+                </div>
+              </form>
+            </div>
+
+            <form class="studio-panel" data-form="note-editor">
+              <div class="studio-panel-head">
+                <h2 data-editor-title="note">Note editor</h2>
+                <div class="studio-button-row">
+                  <button type="button" class="studio-button" data-action="new-note">清空</button>
+                  <button type="button" class="studio-button studio-danger" data-action="delete-note">删除</button>
+                  <button type="submit" class="studio-button">保存笔记</button>
+                </div>
+              </div>
+              <input type="hidden" name="pathKey" />
+              <div class="studio-fields">
+                <label><span>Title</span><input name="title" required /></label>
+                <label><span>Topic</span><input name="topic" list="note-topic-list" required /></label>
+                <label><span>Description</span><textarea name="description" rows="3"></textarea></label>
+                <label><span>Tags</span><input name="tags" placeholder="标签1, 标签2" /></label>
+                <label><span>Date</span><input name="date" type="date" /></label>
+                <label><span>Upload date</span><input name="uploadDate" type="date" /></label>
+                <label><span>Supporting images</span><input name="images" type="file" accept=".jpg,.jpeg,.png,.webp,.gif,image/jpeg,image/png,image/webp,image/gif" multiple /></label>
+                <label><span>Body</span><textarea name="body" rows="16"></textarea></label>
+              </div>
+            </form>
+          </section>
+
+          <section class="studio-section" data-section="writing">
+            <div class="page-intro">
+              <p class="eyebrow">Studio / Writing</p>
+              <h1>Writing</h1>
+              <p class="page-intro-copy">管理类型、Markdown / PDF 条目，以及已有 writing。</p>
+            </div>
+
+            <div class="studio-grid studio-grid-wide">
+              <section class="studio-panel">
+                <div class="studio-panel-head">
+                  <h2>Types</h2>
+                </div>
+                <div class="studio-chip-list" data-list="writing-types"></div>
+              </section>
+
+              <section class="studio-panel">
+                <div class="studio-panel-head">
+                  <h2>Existing writing</h2>
+                  <button type="button" class="studio-button" data-action="new-writing">新建条目</button>
+                </div>
+                <div class="studio-entry-list" data-list="writing"></div>
+              </section>
+            </div>
+
+            <form class="studio-panel" data-form="writing-type">
+              <div class="studio-panel-head">
+                <h2>New writing type</h2>
+                <button type="submit" class="studio-button">创建类型</button>
+              </div>
+              <div class="studio-fields">
+                <label><span>Type name</span><input name="typeName" required placeholder="例如：书评" /></label>
+              </div>
+            </form>
+
+            <form class="studio-panel" data-form="writing-editor">
+              <div class="studio-panel-head">
+                <h2 data-editor-title="writing">Writing editor</h2>
+                <div class="studio-button-row">
+                  <button type="button" class="studio-button" data-action="new-writing">清空</button>
+                  <button type="button" class="studio-button studio-danger" data-action="delete-writing">删除</button>
+                  <button type="submit" class="studio-button">保存条目</button>
+                </div>
+              </div>
+              <input type="hidden" name="pathKey" />
+              <input type="hidden" name="existingFilePath" />
+              <div class="studio-fields">
+                <label><span>Format</span>
+                  <select name="format">
+                    <option value="markdown">Markdown</option>
+                    <option value="pdf">PDF</option>
+                  </select>
+                </label>
+                <label><span>Title</span><input name="title" required /></label>
+                <label><span>Type</span><input name="type" list="writing-type-list" required /></label>
+                <label><span>Description</span><textarea name="description" rows="3"></textarea></label>
+                <label><span>Tags</span><input name="tags" placeholder="标签1, 标签2" /></label>
+                <label><span>Date</span><input name="date" type="date" /></label>
+                <label class="studio-pdf-field"><span>Publication</span><input name="publication" placeholder="Conference / Thesis / Journal" /></label>
+                <label class="studio-pdf-field"><span>PDF file</span><input name="file" type="file" accept="application/pdf" /></label>
+                <label class="studio-markdown-field"><span>Supporting images</span><input name="images" type="file" accept=".jpg,.jpeg,.png,.webp,.gif,image/jpeg,image/png,image/webp,image/gif" multiple /></label>
+                <label><span>Body / Abstract</span><textarea name="body" rows="14"></textarea></label>
+              </div>
+            </form>
+          </section>
+
+          <section class="studio-section" data-section="projects">
+            <div class="page-intro">
+              <p class="eyebrow">Studio / Projects</p>
+              <h1>Projects</h1>
+              <p class="page-intro-copy">管理已有 project，并编辑项目页面内容。</p>
+            </div>
+
+            <section class="studio-panel">
+              <div class="studio-panel-head">
+                <h2>Existing projects</h2>
+                <button type="button" class="studio-button" data-action="new-project">新建项目</button>
+              </div>
+              <div class="studio-entry-list" data-list="projects"></div>
+            </section>
+
+            <form class="studio-panel" data-form="project-editor">
+              <div class="studio-panel-head">
+                <h2 data-editor-title="project">Project editor</h2>
+                <div class="studio-button-row">
+                  <button type="button" class="studio-button" data-action="new-project">清空</button>
+                  <button type="button" class="studio-button studio-danger" data-action="delete-project">删除</button>
+                  <button type="submit" class="studio-button">保存项目</button>
+                </div>
+              </div>
+              <input type="hidden" name="pathKey" />
+              <input type="hidden" name="existingImagePath" />
+              <div class="studio-fields">
+                <label><span>Title</span><input name="title" required /></label>
+                <label><span>Description</span><textarea name="description" rows="3"></textarea></label>
+                <label><span>Status</span><input name="status" placeholder="In progress / Planned / Published" /></label>
+                <label><span>Link</span><input name="link" placeholder="https://example.com" /></label>
+                <label><span>Tags</span><input name="tags" placeholder="workflow, archive" /></label>
+                <label><span>Date</span><input name="date" type="date" /></label>
+                <label><span>Image alt</span><input name="imageAlt" placeholder="项目封面说明" /></label>
+                <label><span>Upload / Replace image</span><input name="imageFile" type="file" accept=".jpg,.jpeg,.png,.webp,.gif,image/jpeg,image/png,image/webp,image/gif" /></label>
+                <p class="studio-file-meta" data-project-image-meta>当前未设置项目图片。</p>
+                <label><span>Body</span><textarea name="body" rows="14"></textarea></label>
+              </div>
+            </form>
+          </section>
+
+          <section class="studio-section" data-section="workflow">
+            <div class="page-intro">
+              <p class="eyebrow">Studio / Workflow</p>
+              <h1>Workflow</h1>
+              <p class="page-intro-copy">这里配置构建与发布命令，并直接在本地触发执行。</p>
+            </div>
+
+            <form class="studio-panel" data-form="workflow-editor">
+              <div class="studio-panel-head">
+                <h2>Commands</h2>
+                <button type="submit" class="studio-button">保存命令</button>
+              </div>
+              <div class="studio-fields">
+                <label><span>Build command</span><input name="buildCommand" required /></label>
+                <label><span>Publish command</span><input name="publishCommand" placeholder="例如：wrangler pages deploy dist" /></label>
+                <label><span>Publish note</span><textarea name="publishNote" rows="4"></textarea></label>
+              </div>
+            </form>
+
+            <section class="studio-panel">
+              <div class="studio-panel-head">
+                <h2>Actions</h2>
+                <div class="studio-button-row">
+                  <button type="button" class="studio-button" data-action="run-build">Build</button>
+                  <button type="button" class="studio-button" data-action="run-publish">Publish</button>
+                </div>
+              </div>
+              <p class="studio-hint" data-workflow-note></p>
+              <pre class="studio-log" data-log-output>等待执行 Build 或 Publish。</pre>
+            </section>
+          </section>
+
+          <datalist id="note-topic-list"></datalist>
+          <datalist id="writing-type-list"></datalist>
+        </div>
+      </section>
+    ) : (
+      <section class="studio-panel">
+        <h1 class="page-title">Studio</h1>
+        <p class="page-summary">Studio 仅在本地开发模式下启用，用于编辑当前仓库并执行本地构建 / 发布命令。</p>
+      </section>
+    )
+  }
+
+  {studioEnabled && <script type="module" src="/studio.js"></script>}
+</Layout>

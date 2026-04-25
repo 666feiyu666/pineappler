@@ -1,0 +1,56 @@
+---
+import { formatDate } from "../lib/content";
+
+interface Props {
+  href: string;
+  title: string;
+  description: string;
+  date: Date;
+  meta?: string[];
+  tags?: string[];
+  badge?: string;
+  linkLabel?: string;
+  imagePath?: string;
+  imageAlt?: string;
+}
+
+const {
+  href,
+  title,
+  description,
+  date,
+  meta = [],
+  tags = [],
+  badge,
+  linkLabel = "Open",
+  imagePath,
+  imageAlt
+} = Astro.props;
+
+const metaText = meta.filter(Boolean).join(" · ");
+---
+
+<article class="entry-card">
+  {imagePath && (
+    <a class="entry-card-media" href={href} aria-hidden="true" tabindex="-1">
+      <img src={imagePath} alt={imageAlt || title} loading="lazy" />
+    </a>
+  )}
+  <div class="card-topline">
+    <p class="card-meta">{metaText || formatDate(date)}</p>
+    {badge && <span class="card-badge">{badge}</span>}
+  </div>
+  <h3>
+    <a href={href}>{title}</a>
+  </h3>
+  <p>{description}</p>
+  {tags.length > 0 && (
+    <ul class="tag-list" aria-label="Tags">
+      {tags.map((tag) => <li>{tag}</li>)}
+    </ul>
+  )}
+  <div class="card-footer">
+    <span class="entry-date">{formatDate(date)}</span>
+    <span class="card-cta">{linkLabel}</span>
+  </div>
+</article>

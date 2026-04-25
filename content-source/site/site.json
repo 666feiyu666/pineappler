@@ -1,0 +1,35 @@
+{
+  "meta": {
+    "title": "Pineappler",
+    "description": "个人写作、研究兴趣与项目记录。",
+    "author": "糖水菠萝",
+    "email": "test@test.com",
+    "location": "Minerva"
+  },
+  "homeQuote": {
+    "text": "做一个密涅瓦的巡林官",
+    "source": "糖水菠萝"
+  },
+  "homeImage": {
+    "path": "/library/site/home/finch.jpg",
+    "alt": "What Remains of Edith Finch"
+  },
+  "about": {
+    "name": "糖水菠萝",
+    "intro": "目前主要围绕社会模拟、游戏研究、叙事学展开学习与积累。",
+    "profile": "这里放一段简短但正式的自我介绍。它可以概括你的关注方向、当前状态，以及你希望读者首先知道的身份线索。",
+    "researchInterests": [
+      "社会模拟",
+      "叙事理论",
+      "游戏分析与游戏研究"
+    ],
+    "experience": "后续可补教育经历、研究经历、项目实践与合作记录。",
+    "writing": "后续可补公开写作、论文、项目索引与代表性作品。",
+    "contact": "Steam：糖水菠萝（Friend Code:1881964047）"
+  },
+  "workflow": {
+    "buildCommand": "npm run build",
+    "publishCommand": "echo \"publish test ok\"",
+    "publishNote": "本地测试，不执行真实部署"
+  }
+}

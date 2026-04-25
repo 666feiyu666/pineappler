@@ -1,0 +1,195 @@
+---
+import "../styles/global.css";
+import { getCollection } from "astro:content";
+import { siteMeta } from "../data/site";
+import {
+  publishedEntries,
+  sortEntries,
+  toParam,
+  uniqueValues
+} from "../lib/content";
+
+interface Props {
+  title?: string;
+  description?: string;
+}
+
+const {
+  title = siteMeta.title,
+  description = siteMeta.description
+} = Astro.props;
+const isDev = import.meta.env.DEV;
+
+const pathname = Astro.url.pathname;
+const notes = sortEntries(publishedEntries(await getCollection("notes")));
+const writing = sortEntries(publishedEntries(await getCollection("writing")));
+const projects = sortEntries(publishedEntries(await getCollection("projects")));
+const noteTopics = uniqueValues(notes.map((entry) => entry.data.topic));
+const writingTypes = uniqueValues(writing.map((entry) => entry.data.type));
+---
+
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content={description} />
+    <title>{title}</title>
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="site-header">
+        <div class="brand-block">
+          <a class="site-title" href="/">{siteMeta.title}</a>
+          <p class="site-tagline">{siteMeta.author}</p>
+        </div>
+
+        <nav aria-label="Main navigation" class="site-nav" data-nav>
+          <a href="/" class:list={["nav-link", pathname === "/" && "active"]}>Home</a>
+          <a
+            href="/about"
+            class:list={["nav-link", pathname.startsWith("/about") && "active"]}
+          >
+            About
+          </a>
+
+          <div
+            class:list={[
+              "nav-group",
+              pathname.startsWith("/notes") && "active"
+            ]}
+            data-nav-group
+          >
+            <div class="nav-row">
+              <a href="/notes" class="nav-link">Notes</a>
+              <button
+                class="nav-toggle"
+                type="button"
+                aria-label="Toggle note topics"
+                aria-expanded="false"
+              >
+                <span></span>
+              </button>
+            </div>
+            <div class="nav-dropdown">
+              {noteTopics.map((topic) => (
+                <a href={`/notes/topic/${toParam(topic)}/`}>{topic}</a>
+              ))}
+            </div>
+          </div>
+
+          <div
+            class:list={[
+              "nav-group",
+              pathname.startsWith("/writing") && "active"
+            ]}
+            data-nav-group
+          >
+            <div class="nav-row">
+              <a href="/writing" class="nav-link">Writing</a>
+              <button
+                class="nav-toggle"
+                type="button"
+                aria-label="Toggle writing types"
+                aria-expanded="false"
+              >
+                <span></span>
+              </button>
+            </div>
+            <div class="nav-dropdown">
+              {writingTypes.map((type) => (
+                <a href={`/writing/type/${toParam(type)}/`}>{type}</a>
+              ))}
+            </div>
+          </div>
+
+          <div
+            class:list={[
+              "nav-group",
+              pathname.startsWith("/projects") && "active"
+            ]}
+            data-nav-group
+          >
+            <div class="nav-row">
+              <a href="/projects" class="nav-link">Projects</a>
+              <button
+                class="nav-toggle"
+                type="button"
+                aria-label="Toggle project links"
+                aria-expanded="false"
+              >
+                <span></span>
+              </button>
+            </div>
+            <div class="nav-dropdown">
+              {projects.map((entry) => (
+                <a href={`/projects/${entry.slug}/`}>{entry.data.title}</a>
+              ))}
+            </div>
+          </div>
+        </nav>
+      </header>
+
+      <main class="page-content">
+        <slot />
+      </main>
+
+      <footer class="site-footer">
+        <p>{siteMeta.location}</p>
+        <p>
+          <a href={`mailto:${siteMeta.email}`}>{siteMeta.email}</a>
+          {isDev && (
+            <>
+              {" · "}
+              <a href="/studio">Studio</a>
+            </>
+          )}
+        </p>
+      </footer>
+    </div>
+
+    <script is:inline>
+      const nav = document.querySelector("[data-nav]");
+      const groups = [...document.querySelectorAll("[data-nav-group]")];
+      const isMobile = () => window.matchMedia("(max-width: 880px)").matches;
+      const closeAll = () => {
+        groups.forEach((group) => {
+          group.classList.remove("is-open");
+          const button = group.querySelector(".nav-toggle");
+          button?.setAttribute("aria-expanded", "false");
+        });
+      };
+
+      groups.forEach((group) => {
+        const button = group.querySelector(".nav-toggle");
+        button?.addEventListener("click", (event) => {
+          if (!isMobile()) {
+            return;
+          }
+
+          event.preventDefault();
+          const willOpen = !group.classList.contains("is-open");
+          closeAll();
+          group.classList.toggle("is-open", willOpen);
+          button.setAttribute("aria-expanded", String(willOpen));
+        });
+      });
+
+      document.addEventListener("click", (event) => {
+        if (!isMobile() || !nav) {
+          return;
+        }
+
+        if (!nav.contains(event.target)) {
+          closeAll();
+        }
+      });
+
+      window.addEventListener("resize", () => {
+        if (!isMobile()) {
+          closeAll();
+        }
+      });
+    </script>
+  </body>
+</html>

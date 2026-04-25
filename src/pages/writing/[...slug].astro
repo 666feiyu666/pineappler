@@ -1,0 +1,47 @@
+---
+import { getCollection } from "astro:content";
+import Layout from "../../components/Layout.astro";
+import { formatDate, publishedEntries } from "../../lib/content";
+
+export async function getStaticPaths() {
+  const entries = publishedEntries(await getCollection("writing"));
+  return entries.map((entry) => ({
+    params: { slug: entry.slug },
+    props: { entry }
+  }));
+}
+
+const { entry } = Astro.props;
+const { Content } = await entry.render();
+---
+
+<Layout title={`${entry.data.title} | Writing`} description={entry.data.description}>
+  <article class="content-block">
+    <p class="entry-date">
+      {[entry.data.type, entry.data.publication].filter(Boolean).join(" · ")}
+    </p>
+    <h1 class="page-title">{entry.data.title}</h1>
+    <p class="page-summary">{entry.data.description}</p>
+    <div class="detail-actions">
+      <span class="entry-date">{formatDate(entry.data.date)}</span>
+      {entry.data.format === "pdf" && entry.data.filePath && (
+        <a class="action-link" href={entry.data.filePath} target="_blank" rel="noreferrer">
+          Open PDF
+        </a>
+      )}
+    </div>
+    {entry.data.tags.length > 0 && (
+      <ul class="tag-list">
+        {entry.data.tags.map((tag: string) => <li>{tag}</li>)}
+      </ul>
+    )}
+    <div class="prose-block">
+      <Content />
+    </div>
+    {entry.data.format === "pdf" && entry.data.filePath && (
+      <div class="pdf-preview">
+        <iframe src={entry.data.filePath} title={`${entry.data.title} PDF preview`}></iframe>
+      </div>
+    )}
+  </article>
+</Layout>
