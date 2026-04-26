@@ -1,7 +1,7 @@
 ---
 import { getCollection } from "astro:content";
 import Layout from "../../components/Layout.astro";
-import { formatDate, publishedEntries } from "../../lib/content";
+import { formatDate, publishedEntries, taxonomyLabel } from "../../lib/content";
 
 export async function getStaticPaths() {
   const entries = publishedEntries(await getCollection("projects"));
@@ -26,6 +26,10 @@ const { Content } = await entry.render();
       </figure>
     )}
     <div class="meta-grid">
+      <div>
+        <span>Category</span>
+        <strong>{taxonomyLabel(entry.data.category, entry.data.subcategory)}</strong>
+      </div>
       <div>
         <span>Status</span>
         <strong>{entry.data.status}</strong>

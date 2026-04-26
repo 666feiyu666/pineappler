@@ -12,31 +12,56 @@ import { aboutContent } from "../data/site";
   />
 
   <section class="about-grid">
-    <article class="content-block">
-      <h2>Profile</h2>
-      <p>{aboutContent.profile}</p>
+    <article class="content-block about-card">
+      <div class="about-card-heading">
+        <p class="eyebrow">01</p>
+        <h2>Profile</h2>
+      </div>
+      <div class="about-card-body">
+        <p>{aboutContent.profile}</p>
+      </div>
     </article>
 
-    <article class="content-block">
-      <h2>Research Interests</h2>
-      <ul class="plain-list">
-        {aboutContent.researchInterests.map((item) => <li>{item}</li>)}
-      </ul>
+    <article class="content-block about-card">
+      <div class="about-card-heading">
+        <p class="eyebrow">02</p>
+        <h2>Research Interests</h2>
+      </div>
+      <div class="about-card-body">
+        <ul class="plain-list research-list">
+          {aboutContent.researchInterests.map((item) => <li>{item}</li>)}
+        </ul>
+      </div>
     </article>
 
-    <article class="content-block">
-      <h2>Education / Experience</h2>
-      <p>{aboutContent.experience}</p>
+    <article class="content-block about-card">
+      <div class="about-card-heading">
+        <p class="eyebrow">03</p>
+        <h2>Education / Experience</h2>
+      </div>
+      <div class="about-card-body">
+        <p>{aboutContent.experience}</p>
+      </div>
     </article>
 
-    <article class="content-block">
-      <h2>Writing / Projects</h2>
-      <p>{aboutContent.writing}</p>
+    <article class="content-block about-card">
+      <div class="about-card-heading">
+        <p class="eyebrow">04</p>
+        <h2>Writing / Projects</h2>
+      </div>
+      <div class="about-card-body">
+        <p>{aboutContent.writing}</p>
+      </div>
     </article>
 
-    <article class="content-block">
-      <h2>Contact</h2>
-      <p>{aboutContent.contact}</p>
+    <article class="content-block about-card">
+      <div class="about-card-heading">
+        <p class="eyebrow">05</p>
+        <h2>Contact</h2>
+      </div>
+      <div class="about-card-body">
+        <p class="multiline-copy">{aboutContent.contact}</p>
+      </div>
     </article>
   </section>
 </Layout>

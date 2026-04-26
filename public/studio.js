@@ -34,10 +34,13 @@ const ui = {
   noteImportForm: document.querySelector('[data-form="note-import"]'),
   noteForm: document.querySelector('[data-form="note-editor"]'),
   writingTypeForm: document.querySelector('[data-form="writing-type"]'),
+  writingImportForm: document.querySelector('[data-form="writing-import"]'),
   writingForm: document.querySelector('[data-form="writing-editor"]'),
   projectForm: document.querySelector('[data-form="project-editor"]'),
   workflowForm: document.querySelector('[data-form="workflow-editor"]')
 };
+
+const markdownEditors = {};
 
 function setStatus(message, tone = "muted") {
   if (!statusNode) return;
@@ -103,6 +106,10 @@ function fillDatalist(target, values) {
   target.innerHTML = values.map((value) => `<option value="${value}"></option>`).join("");
 }
 
+function taxonomyLabel(primary, secondary) {
+  return [primary, secondary].filter(Boolean).join(" / ");
+}
+
 function renderChipList(target, values, kind) {
   if (!target) return;
   target.innerHTML = "";
@@ -153,18 +160,22 @@ function renderEntryList(target, entries, kind) {
 
     const title = document.createElement("strong");
     title.textContent = entry.data.title || entry.pathKey;
+
     const meta = document.createElement("span");
     if (kind === "note") {
-      meta.textContent = [entry.data.topic, entry.data.uploadDate || entry.data.date]
+      meta.textContent = [taxonomyLabel(entry.data.topic, entry.data.subtopic), entry.data.uploadDate || entry.data.date]
         .filter(Boolean)
         .join(" · ");
     } else if (kind === "writing") {
-      meta.textContent = [entry.data.type, entry.data.format, entry.data.date]
+      meta.textContent = [taxonomyLabel(entry.data.type, entry.data.subtype), entry.data.format, entry.data.date]
         .filter(Boolean)
         .join(" · ");
     } else {
-      meta.textContent = [entry.data.status, entry.data.date].filter(Boolean).join(" · ");
+      meta.textContent = [taxonomyLabel(entry.data.category || "未分类", entry.data.subcategory), entry.data.status, entry.data.date]
+        .filter(Boolean)
+        .join(" · ");
     }
+
     open.append(title, meta);
 
     const del = document.createElement("button");
@@ -186,12 +197,486 @@ function setEditorTitle(key, label) {
   }
 }
 
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function escapeAttribute(value) {
+  return escapeHtml(value).replace(/'/g, "&#39;");
+}
+
+function basename(value) {
+  return String(value || "").split(/[\\/]/).pop() || "";
+}
+
+function removeExtension(value) {
+  return value.replace(/\.[^.]+$/, "");
+}
+
+function extractMarkdownTarget(rawTarget) {
+  const trimmed = String(rawTarget || "").trim();
+  if (!trimmed) return "";
+  if (trimmed.startsWith("<")) {
+    const endIndex = trimmed.indexOf(">");
+    return endIndex === -1 ? trimmed.slice(1) : trimmed.slice(1, endIndex);
+  }
+  return trimmed.split(/\s+/)[0];
+}
+
+function makeUniqueFileName(editor, fileName) {
+  const safeName = fileName || `image-${Date.now()}.png`;
+  const dotIndex = safeName.lastIndexOf(".");
+  const stem = dotIndex > 0 ? safeName.slice(0, dotIndex) : safeName;
+  const ext = dotIndex > 0 ? safeName.slice(dotIndex) : "";
+  const taken = new Set(editor.pendingImages.map((item) => item.file.name));
+
+  if (!taken.has(safeName)) {
+    return safeName;
+  }
+
+  let counter = 2;
+  while (taken.has(`${stem}-${counter}${ext}`)) {
+    counter += 1;
+  }
+  return `${stem}-${counter}${ext}`;
+}
+
+function toPreviewUrl(editor, target) {
+  const extracted = extractMarkdownTarget(target);
+  if (!extracted) return "";
+  if (/^(https?:|data:|\/)/i.test(extracted)) {
+    return extracted;
+  }
+  const decoded = decodeURIComponent(extracted);
+  const targetName = basename(decoded);
+  const match = editor.pendingImages.find((item) => item.file.name === decoded || item.file.name === targetName);
+  return match?.previewUrl || extracted;
+}
+
+function formatInline(text, resolveAsset) {
+  let html = escapeHtml(text);
+
+  html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_, alt, target) => {
+    const src = resolveAsset(target);
+    return `<img src="${escapeAttribute(src)}" alt="${escapeAttribute(alt)}" loading="lazy" />`;
+  });
+
+  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, label, target) => {
+    const href = extractMarkdownTarget(target);
+    return `<a href="${escapeAttribute(href)}" target="_blank" rel="noreferrer">${label}</a>`;
+  });
+
+  html = html.replace(/`([^`]+)`/g, "<code>$1</code>");
+  html = html.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+  html = html.replace(/\*([^*]+)\*/g, "<em>$1</em>");
+  html = html.replace(/~~([^~]+)~~/g, "<del>$1</del>");
+
+  return html;
+}
+
+function renderMarkdownToHtml(markdown, resolveAsset) {
+  const source = String(markdown || "").replace(/\r\n?/g, "\n");
+  if (!source.trim()) {
+    return '<p class="studio-markdown-preview-empty">预览会显示在这里。</p>';
+  }
+
+  const codeBlocks = [];
+  const protectedSource = source.replace(/```([\w-]*)\n([\s\S]*?)```/g, (_, language, code) => {
+    const index = codeBlocks.push({ language, code: code.replace(/\n$/, "") }) - 1;
+    return `@@CODE_BLOCK_${index}@@`;
+  });
+
+  const lines = protectedSource.split("\n");
+  const html = [];
+  let paragraph = [];
+  let quote = [];
+  let listType = "";
+  let listItems = [];
+
+  const flushParagraph = () => {
+    if (!paragraph.length) return;
+    html.push(`<p>${paragraph.map((line) => formatInline(line, resolveAsset)).join("<br />")}</p>`);
+    paragraph = [];
+  };
+
+  const flushQuote = () => {
+    if (!quote.length) return;
+    html.push(`<blockquote>${quote.map((line) => `<p>${formatInline(line, resolveAsset) || "<br />"}</p>`).join("")}</blockquote>`);
+    quote = [];
+  };
+
+  const flushList = () => {
+    if (!listItems.length || !listType) return;
+    html.push(`<${listType}>${listItems.map((item) => `<li>${formatInline(item, resolveAsset)}</li>`).join("")}</${listType}>`);
+    listType = "";
+    listItems = [];
+  };
+
+  const flushAll = () => {
+    flushParagraph();
+    flushQuote();
+    flushList();
+  };
+
+  lines.forEach((rawLine) => {
+    if (!rawLine.trim()) {
+      flushAll();
+      return;
+    }
+
+    const codeMatch = rawLine.match(/^@@CODE_BLOCK_(\d+)@@$/);
+    if (codeMatch) {
+      flushAll();
+      const block = codeBlocks[Number(codeMatch[1])];
+      const languageClass = block.language ? ` class="language-${escapeAttribute(block.language)}"` : "";
+      html.push(`<pre><code${languageClass}>${escapeHtml(block.code)}</code></pre>`);
+      return;
+    }
+
+    const headingMatch = rawLine.match(/^(#{1,6})\s+(.+)$/);
+    if (headingMatch) {
+      flushAll();
+      const level = headingMatch[1].length;
+      html.push(`<h${level}>${formatInline(headingMatch[2].trim(), resolveAsset)}</h${level}>`);
+      return;
+    }
+
+    if (/^(-{3,}|\*{3,})$/.test(rawLine.trim())) {
+      flushAll();
+      html.push("<hr />");
+      return;
+    }
+
+    const quoteMatch = rawLine.match(/^>\s?(.*)$/);
+    if (quoteMatch) {
+      flushParagraph();
+      flushList();
+      quote.push(quoteMatch[1]);
+      return;
+    }
+
+    const unorderedMatch = rawLine.match(/^\s*[-*]\s+(.+)$/);
+    if (unorderedMatch) {
+      flushParagraph();
+      flushQuote();
+      if (listType && listType !== "ul") {
+        flushList();
+      }
+      listType = "ul";
+      listItems.push(unorderedMatch[1]);
+      return;
+    }
+
+    const orderedMatch = rawLine.match(/^\s*\d+\.\s+(.+)$/);
+    if (orderedMatch) {
+      flushParagraph();
+      flushQuote();
+      if (listType && listType !== "ol") {
+        flushList();
+      }
+      listType = "ol";
+      listItems.push(orderedMatch[1]);
+      return;
+    }
+
+    flushQuote();
+    flushList();
+    paragraph.push(rawLine.trim());
+  });
+
+  flushAll();
+  return html.join("\n");
+}
+
+function replaceRange(textarea, start, end, replacement, selectionStart, selectionEnd) {
+  const value = textarea.value;
+  textarea.value = `${value.slice(0, start)}${replacement}${value.slice(end)}`;
+  textarea.focus();
+  textarea.selectionStart = selectionStart;
+  textarea.selectionEnd = selectionEnd;
+  textarea.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
+function wrapSelection(textarea, before, after = before, placeholder = "text") {
+  const start = textarea.selectionStart;
+  const end = textarea.selectionEnd;
+  const selected = textarea.value.slice(start, end) || placeholder;
+  const replacement = `${before}${selected}${after}`;
+  replaceRange(
+    textarea,
+    start,
+    end,
+    replacement,
+    start + before.length,
+    start + before.length + selected.length
+  );
+}
+
+function prefixLines(textarea, prefix) {
+  const start = textarea.selectionStart;
+  const end = textarea.selectionEnd;
+  const value = textarea.value;
+  const lineStart = value.lastIndexOf("\n", Math.max(0, start - 1)) + 1;
+  const nextBreak = value.indexOf("\n", end);
+  const lineEnd = nextBreak === -1 ? value.length : nextBreak;
+  const block = value.slice(lineStart, lineEnd);
+  const replaced = block
+    .split("\n")
+    .map((line) => `${prefix}${line}`)
+    .join("\n");
+  replaceRange(textarea, lineStart, lineEnd, replaced, lineStart, lineStart + replaced.length);
+}
+
+function insertAtCursor(textarea, text) {
+  const start = textarea.selectionStart;
+  const end = textarea.selectionEnd;
+  replaceRange(textarea, start, end, text, start + text.length, start + text.length);
+}
+
+function getQueuedImageMarkdown(fileName) {
+  return `![${removeExtension(fileName)}](<${fileName}>)`;
+}
+
+function renderUploadList(editor) {
+  if (!editor.uploadsNode) return;
+  editor.uploadsNode.innerHTML = "";
+
+  if (!editor.pendingImages.length) {
+    return;
+  }
+
+  editor.pendingImages.forEach((item) => {
+    const row = document.createElement("div");
+    row.className = "studio-upload-item";
+
+    const label = document.createElement("span");
+    label.textContent = item.file.name;
+
+    const removeButton = document.createElement("button");
+    removeButton.type = "button";
+    removeButton.className = "studio-upload-remove";
+    removeButton.dataset.removeUpload = item.id;
+    removeButton.textContent = "移除";
+
+    row.append(label, removeButton);
+    editor.uploadsNode.appendChild(row);
+  });
+}
+
+function updateMarkdownPreview(editor) {
+  if (!editor.previewNode) return;
+  editor.previewNode.innerHTML = renderMarkdownToHtml(editor.textarea.value, (target) =>
+    toPreviewUrl(editor, target)
+  );
+}
+
+function clearPendingImages(editor) {
+  editor.pendingImages.forEach((item) => URL.revokeObjectURL(item.previewUrl));
+  editor.pendingImages = [];
+  renderUploadList(editor);
+  updateMarkdownPreview(editor);
+}
+
+function removePendingImage(editor, id) {
+  const index = editor.pendingImages.findIndex((item) => item.id === id);
+  if (index === -1) return;
+  URL.revokeObjectURL(editor.pendingImages[index].previewUrl);
+  editor.pendingImages.splice(index, 1);
+  renderUploadList(editor);
+  updateMarkdownPreview(editor);
+}
+
+function queueImages(editor, files) {
+  const accepted = [...files].filter((file) =>
+    file.type.startsWith("image/") || /\.(png|jpe?g|gif|webp)$/i.test(file.name)
+  );
+
+  if (!accepted.length) {
+    return;
+  }
+
+  const snippets = [];
+
+  accepted.forEach((file) => {
+    const uniqueName = makeUniqueFileName(editor, file.name);
+    const queuedFile =
+      uniqueName === file.name
+        ? file
+        : new File([file], uniqueName, {
+            type: file.type,
+            lastModified: file.lastModified
+          });
+
+    editor.pendingImages.push({
+      id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      file: queuedFile,
+      previewUrl: URL.createObjectURL(queuedFile)
+    });
+    snippets.push(getQueuedImageMarkdown(queuedFile.name));
+  });
+
+  renderUploadList(editor);
+  const separator = editor.textarea.value && !editor.textarea.value.endsWith("\n") ? "\n\n" : "";
+  insertAtCursor(editor.textarea, `${separator}${snippets.join("\n\n")}`);
+}
+
+function runEditorCommand(editor, command) {
+  switch (command) {
+    case "heading":
+      prefixLines(editor.textarea, "## ");
+      break;
+    case "bold":
+      wrapSelection(editor.textarea, "**", "**", "重点");
+      break;
+    case "quote":
+      prefixLines(editor.textarea, "> ");
+      break;
+    case "list":
+      prefixLines(editor.textarea, "- ");
+      break;
+    case "code":
+      wrapSelection(editor.textarea, "```md\n", "\n```", "code");
+      break;
+    case "image":
+      editor.uploadInput?.click();
+      break;
+  }
+}
+
+function initMarkdownEditor(key) {
+  const container = document.querySelector(`[data-markdown-editor="${key}"]`);
+  if (!container) return null;
+
+  const editor = {
+    key,
+    container,
+    textarea: container.querySelector(`[data-markdown-input="${key}"]`),
+    previewNode: container.querySelector(`[data-markdown-preview="${key}"]`),
+    uploadsNode: container.querySelector(`[data-markdown-uploads="${key}"]`),
+    uploadInput: container.querySelector("[data-markdown-upload]"),
+    pendingImages: []
+  };
+
+  if (!editor.textarea) {
+    return null;
+  }
+
+  container.addEventListener("click", (event) => {
+    const commandButton = event.target.closest("[data-editor-command]");
+    if (commandButton) {
+      runEditorCommand(editor, commandButton.dataset.editorCommand);
+      return;
+    }
+
+    const removeButton = event.target.closest("[data-remove-upload]");
+    if (removeButton) {
+      removePendingImage(editor, removeButton.dataset.removeUpload);
+    }
+  });
+
+  editor.textarea.addEventListener("input", () => updateMarkdownPreview(editor));
+
+  editor.textarea.addEventListener("keydown", (event) => {
+    if (event.key !== "Tab") return;
+    event.preventDefault();
+    insertAtCursor(editor.textarea, "  ");
+  });
+
+  editor.textarea.addEventListener("paste", (event) => {
+    const files = [...(event.clipboardData?.files || [])];
+    if (!files.some((file) => file.type.startsWith("image/"))) {
+      return;
+    }
+    event.preventDefault();
+    queueImages(editor, files);
+  });
+
+  ["dragenter", "dragover"].forEach((type) => {
+    container.addEventListener(type, (event) => {
+      if (![...(event.dataTransfer?.items || [])].some((item) => item.type.startsWith("image/"))) {
+        return;
+      }
+      event.preventDefault();
+      container.classList.add("is-dragover");
+    });
+  });
+
+  ["dragleave", "dragend", "drop"].forEach((type) => {
+    container.addEventListener(type, () => {
+      container.classList.remove("is-dragover");
+    });
+  });
+
+  container.addEventListener("drop", (event) => {
+    const files = [...(event.dataTransfer?.files || [])];
+    if (!files.some((file) => file.type.startsWith("image/"))) {
+      return;
+    }
+    event.preventDefault();
+    queueImages(editor, files);
+  });
+
+  editor.uploadInput?.addEventListener("change", (event) => {
+    const files = event.target.files;
+    if (files?.length) {
+      queueImages(editor, files);
+    }
+    event.target.value = "";
+  });
+
+  updateMarkdownPreview(editor);
+  renderUploadList(editor);
+  return editor;
+}
+
+function getEditor(key) {
+  return markdownEditors[key];
+}
+
+function resetMarkdownEditor(key) {
+  const editor = getEditor(key);
+  if (!editor) return;
+  clearPendingImages(editor);
+  editor.textarea.value = "";
+  updateMarkdownPreview(editor);
+}
+
+function setMarkdownEditorValue(key, value) {
+  const editor = getEditor(key);
+  if (!editor) return;
+  clearPendingImages(editor);
+  editor.textarea.value = value || "";
+  updateMarkdownPreview(editor);
+}
+
+async function getMarkdownEditorPayload(key) {
+  const editor = getEditor(key);
+  if (!editor) {
+    return { body: "", images: [] };
+  }
+  return {
+    body: editor.textarea.value,
+    images: await filesToPayload(editor.pendingImages.map((item) => item.file))
+  };
+}
+
+function setMarkdownEditorPassive(key, passive) {
+  const editor = getEditor(key);
+  if (!editor) return;
+  editor.container.classList.toggle("is-passive", passive);
+}
+
 function resetNoteForm() {
   const form = ui.noteForm;
   form.reset();
   form.pathKey.value = "";
   form.date.value = today;
   form.uploadDate.value = today;
+  form.subtopic.value = "";
   form.images.value = "";
   setEditorTitle("note", "Note editor");
 }
@@ -203,6 +688,8 @@ function resetWritingForm() {
   form.existingFilePath.value = "";
   form.date.value = today;
   form.format.value = "markdown";
+  form.subtype.value = "";
+  resetMarkdownEditor("writing");
   updateWritingFormatUI();
   setEditorTitle("writing", "Writing editor");
 }
@@ -213,7 +700,10 @@ function resetProjectForm() {
   form.pathKey.value = "";
   form.existingImagePath.value = "";
   form.date.value = today;
+  form.category.value = "未分类";
+  form.subcategory.value = "";
   form.status.value = "In progress";
+  resetMarkdownEditor("project");
   if (ui.projectImageMeta) {
     ui.projectImageMeta.textContent = "当前未设置项目图片。";
   }
@@ -225,9 +715,7 @@ function updateWritingFormatUI() {
   ui.writingForm.querySelectorAll(".studio-pdf-field").forEach((field) => {
     field.classList.toggle("is-hidden", !isPdf);
   });
-  ui.writingForm.querySelectorAll(".studio-markdown-field").forEach((field) => {
-    field.classList.toggle("is-hidden", isPdf);
-  });
+  setMarkdownEditorPassive("writing", isPdf);
 }
 
 function populateSiteForms() {
@@ -282,6 +770,13 @@ function findEntry(entries, pathKey) {
   return entries.find((entry) => entry.pathKey === pathKey);
 }
 
+function focusSavedEntry(entries, pathKey, fallbackTitle) {
+  if (pathKey) {
+    return findEntry(entries, pathKey);
+  }
+  return entries.find((entry) => entry.data.title === fallbackTitle);
+}
+
 function loadNote(pathKey) {
   const entry = findEntry(state.notes, pathKey);
   if (!entry) return;
@@ -290,6 +785,7 @@ function loadNote(pathKey) {
   ui.noteForm.pathKey.value = entry.pathKey;
   ui.noteForm.title.value = entry.data.title || "";
   ui.noteForm.topic.value = entry.data.topic || "";
+  ui.noteForm.subtopic.value = entry.data.subtopic || "";
   ui.noteForm.description.value = entry.data.description || "";
   ui.noteForm.tags.value = (entry.data.tags || []).join(", ");
   ui.noteForm.date.value = entry.data.date || today;
@@ -303,17 +799,17 @@ function loadWriting(pathKey) {
   if (!entry) return;
   setActiveSection("writing");
   ui.writingForm.file.value = "";
-  ui.writingForm.images.value = "";
   ui.writingForm.pathKey.value = entry.pathKey;
   ui.writingForm.existingFilePath.value = entry.data.filePath || "";
   ui.writingForm.format.value = entry.data.format || "markdown";
   ui.writingForm.title.value = entry.data.title || "";
   ui.writingForm.type.value = entry.data.type || "";
+  ui.writingForm.subtype.value = entry.data.subtype || "";
   ui.writingForm.description.value = entry.data.description || "";
   ui.writingForm.tags.value = (entry.data.tags || []).join(", ");
   ui.writingForm.date.value = entry.data.date || today;
   ui.writingForm.publication.value = entry.data.publication || "";
-  ui.writingForm.body.value = entry.body || "";
+  setMarkdownEditorValue("writing", entry.body || "");
   updateWritingFormatUI();
   setEditorTitle("writing", `Editing: ${entry.data.title || entry.pathKey}`);
 }
@@ -325,6 +821,8 @@ function loadProject(pathKey) {
   ui.projectForm.imageFile.value = "";
   ui.projectForm.pathKey.value = entry.pathKey;
   ui.projectForm.title.value = entry.data.title || "";
+  ui.projectForm.category.value = entry.data.category || "未分类";
+  ui.projectForm.subcategory.value = entry.data.subcategory || "";
   ui.projectForm.description.value = entry.data.description || "";
   ui.projectForm.status.value = entry.data.status || "In progress";
   ui.projectForm.link.value = entry.data.link || "";
@@ -332,7 +830,7 @@ function loadProject(pathKey) {
   ui.projectForm.date.value = entry.data.date || today;
   ui.projectForm.existingImagePath.value = entry.data.imagePath || "";
   ui.projectForm.imageAlt.value = entry.data.imageAlt || "";
-  ui.projectForm.body.value = entry.body || "";
+  setMarkdownEditorValue("project", entry.body || "");
   if (ui.projectImageMeta) {
     ui.projectImageMeta.textContent = entry.data.imagePath
       ? `当前图片：${entry.data.imagePath}`
@@ -376,7 +874,7 @@ function toBase64(file) {
 
 async function filesToPayload(fileList) {
   const files = [...(fileList || [])];
-  return await Promise.all(
+  return Promise.all(
     files.map(async (file) => ({
       fileName: file.name,
       base64: await toBase64(file)
@@ -458,13 +956,19 @@ async function importNote() {
     method: "POST",
     body: JSON.stringify({
       topic: form.topic.value.trim(),
+      subtopic: form.subtopic.value.trim(),
       title: file.name.replace(/\.md$/i, ""),
+      fileName: file.name,
       content: await file.text(),
       images: await filesToPayload(form.images.files)
     })
   });
   form.reset();
   applyState(payload.state);
+  const saved = focusSavedEntry(payload.state.notes, payload.savedPathKey, file.name.replace(/\.md$/i, ""));
+  if (saved) {
+    loadNote(saved.pathKey);
+  }
 }
 
 async function saveNote() {
@@ -475,6 +979,7 @@ async function saveNote() {
       pathKey: form.pathKey.value || "",
       title: form.title.value.trim(),
       topic: form.topic.value.trim(),
+      subtopic: form.subtopic.value.trim(),
       description: form.description.value.trim(),
       tags: splitTags(form.tags.value),
       date: form.date.value || today,
@@ -485,9 +990,10 @@ async function saveNote() {
   });
   applyState(payload.state);
   form.images.value = "";
-  const savedPath = form.pathKey.value || `content-source/notes/${slugify(form.topic.value.trim())}`;
-  const match = payload.state.notes.find((entry) => entry.data.title === form.title.value.trim());
-  if (match) loadNote(match.pathKey);
+  const saved = focusSavedEntry(payload.state.notes, payload.savedPathKey, form.title.value.trim());
+  if (saved) {
+    loadNote(saved.pathKey);
+  }
 }
 
 async function createWritingType() {
@@ -502,9 +1008,33 @@ async function createWritingType() {
   applyState(payload.state);
 }
 
+async function importWriting() {
+  const form = ui.writingImportForm;
+  const file = form.file.files?.[0];
+  if (!file) throw new Error("请选择 Markdown 文件。");
+  const payload = await request("/writing/import", {
+    method: "POST",
+    body: JSON.stringify({
+      type: form.type.value.trim(),
+      subtype: form.subtype.value.trim(),
+      title: file.name.replace(/\.md$/i, ""),
+      fileName: file.name,
+      content: await file.text(),
+      images: await filesToPayload(form.images.files)
+    })
+  });
+  form.reset();
+  applyState(payload.state);
+  const saved = focusSavedEntry(payload.state.writings, payload.savedPathKey, file.name.replace(/\.md$/i, ""));
+  if (saved) {
+    loadWriting(saved.pathKey);
+  }
+}
+
 async function saveWriting() {
   const form = ui.writingForm;
   const file = form.file.files?.[0];
+  const markdownPayload = await getMarkdownEditorPayload("writing");
   const payload = await request("/writing/save", {
     method: "POST",
     body: JSON.stringify({
@@ -513,37 +1043,43 @@ async function saveWriting() {
       format: form.format.value,
       title: form.title.value.trim(),
       type: form.type.value.trim(),
+      subtype: form.subtype.value.trim(),
       description: form.description.value.trim(),
       tags: splitTags(form.tags.value),
       date: form.date.value || today,
       publication: form.publication.value.trim(),
-      body: form.body.value,
+      body: markdownPayload.body,
       fileName: file?.name || "",
       fileBase64: file ? await toBase64(file) : "",
-      images: await filesToPayload(form.images.files)
+      images: form.format.value === "markdown" ? markdownPayload.images : []
     })
   });
   applyState(payload.state);
   form.file.value = "";
-  form.images.value = "";
-  const match = payload.state.writings.find((entry) => entry.data.title === form.title.value.trim());
-  if (match) loadWriting(match.pathKey);
+  const saved = focusSavedEntry(payload.state.writings, payload.savedPathKey, form.title.value.trim());
+  if (saved) {
+    loadWriting(saved.pathKey);
+  }
 }
 
 async function saveProject() {
   const form = ui.projectForm;
   const imageFile = form.imageFile.files?.[0];
+  const markdownPayload = await getMarkdownEditorPayload("project");
   const payload = await request("/projects/save", {
     method: "POST",
     body: JSON.stringify({
       pathKey: form.pathKey.value || "",
       title: form.title.value.trim(),
+      category: form.category.value.trim(),
+      subcategory: form.subcategory.value.trim(),
       description: form.description.value.trim(),
       status: form.status.value.trim(),
       link: form.link.value.trim(),
       tags: splitTags(form.tags.value),
       date: form.date.value || today,
-      body: form.body.value,
+      body: markdownPayload.body,
+      images: markdownPayload.images,
       existingImagePath: form.existingImagePath.value || "",
       imageAlt: form.imageAlt.value.trim(),
       imageFileName: imageFile?.name || "",
@@ -552,8 +1088,10 @@ async function saveProject() {
   });
   applyState(payload.state);
   form.imageFile.value = "";
-  const match = payload.state.projects.find((entry) => entry.data.title === form.title.value.trim());
-  if (match) loadProject(match.pathKey);
+  const saved = focusSavedEntry(payload.state.projects, payload.savedPathKey, form.title.value.trim());
+  if (saved) {
+    loadProject(saved.pathKey);
+  }
 }
 
 async function deleteAction(pathname, body, successMessage, afterReset) {
@@ -614,16 +1152,31 @@ document.addEventListener("click", async (event) => {
         await deleteAction("/writing/type/delete", { typeName: target.dataset.name }, "Writing 类型已删除。");
         return;
       case "delete-note":
-        if (!ui.noteForm.pathKey.value) throw new Error("请先选择要删除的 note。");
-        await deleteAction("/entry/delete", { kind: "note", pathKey: ui.noteForm.pathKey.value }, "Note 已删除。", resetNoteForm);
+        if (!target.dataset.path && !ui.noteForm.pathKey.value) throw new Error("请先选择要删除的 note。");
+        await deleteAction(
+          "/entry/delete",
+          { kind: "note", pathKey: target.dataset.path || ui.noteForm.pathKey.value },
+          "Note 已删除。",
+          resetNoteForm
+        );
         return;
       case "delete-writing":
-        if (!ui.writingForm.pathKey.value) throw new Error("请先选择要删除的 writing 条目。");
-        await deleteAction("/entry/delete", { kind: "writing", pathKey: ui.writingForm.pathKey.value }, "Writing 条目已删除。", resetWritingForm);
+        if (!target.dataset.path && !ui.writingForm.pathKey.value) throw new Error("请先选择要删除的 writing 条目。");
+        await deleteAction(
+          "/entry/delete",
+          { kind: "writing", pathKey: target.dataset.path || ui.writingForm.pathKey.value },
+          "Writing 条目已删除。",
+          resetWritingForm
+        );
         return;
       case "delete-project":
-        if (!ui.projectForm.pathKey.value) throw new Error("请先选择要删除的 project。");
-        await deleteAction("/entry/delete", { kind: "project", pathKey: ui.projectForm.pathKey.value }, "Project 已删除。", resetProjectForm);
+        if (!target.dataset.path && !ui.projectForm.pathKey.value) throw new Error("请先选择要删除的 project。");
+        await deleteAction(
+          "/entry/delete",
+          { kind: "project", pathKey: target.dataset.path || ui.projectForm.pathKey.value },
+          "Project 已删除。",
+          resetProjectForm
+        );
         return;
       case "run-build":
         setActiveSection("workflow");
@@ -640,6 +1193,9 @@ document.addEventListener("click", async (event) => {
     setStatus(error.message, "error");
   }
 });
+
+markdownEditors.writing = initMarkdownEditor("writing");
+markdownEditors.project = initMarkdownEditor("project");
 
 ui.writingForm.format.addEventListener("change", updateWritingFormatUI);
 
@@ -698,6 +1254,16 @@ ui.writingTypeForm.addEventListener("submit", async (event) => {
   try {
     await createWritingType();
     setStatus("Writing 类型已创建。", "ok");
+  } catch (error) {
+    setStatus(error.message, "error");
+  }
+});
+
+ui.writingImportForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  try {
+    await importWriting();
+    setStatus("Markdown writing 已导入。", "ok");
   } catch (error) {
     setStatus(error.message, "error");
   }

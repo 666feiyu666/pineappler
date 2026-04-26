@@ -1,0 +1,94 @@
+---
+import { getCollection } from "astro:content";
+import EntryCard from "../../../../components/EntryCard.astro";
+import FilterStrip from "../../../../components/FilterStrip.astro";
+import Layout from "../../../../components/Layout.astro";
+import PageIntro from "../../../../components/PageIntro.astro";
+import {
+  publishedEntries,
+  sortEntries,
+  taxonomyLabel,
+  toParam,
+  uniqueNonEmpty,
+  uniqueValues
+} from "../../../../lib/content";
+
+const allNotes = sortEntries(publishedEntries(await getCollection("notes")));
+const topics = uniqueValues(allNotes.map((entry) => entry.data.topic));
+
+export async function getStaticPaths() {
+  const notes = sortEntries(publishedEntries(await getCollection("notes")));
+  const pairs = new Map();
+
+  for (const entry of notes) {
+    if (!entry.data.subtopic) continue;
+    pairs.set(`${entry.data.topic}:::${entry.data.subtopic}`, {
+      topic: entry.data.topic,
+      subtopic: entry.data.subtopic
+    });
+  }
+
+  return [...pairs.values()].map(({ topic, subtopic }) => ({
+    params: {
+      topic: toParam(topic),
+      subtopic: toParam(subtopic)
+    },
+    props: {
+      topic,
+      subtopic,
+      notes: notes.filter(
+        (entry) => entry.data.topic === topic && entry.data.subtopic === subtopic
+      )
+    }
+  }));
+}
+
+const { topic, subtopic, notes } = Astro.props;
+const subtopics = uniqueNonEmpty(
+  allNotes
+    .filter((entry) => entry.data.topic === topic)
+    .map((entry) => entry.data.subtopic)
+);
+---
+
+<Layout
+  title={`Pineappler | ${taxonomyLabel(topic, subtopic)}`}
+  description={`${taxonomyLabel(topic, subtopic)} 下的笔记。`}
+>
+  <PageIntro eyebrow="Notes" title={taxonomyLabel(topic, subtopic)} />
+  <FilterStrip
+    items={[
+      { href: "/notes", label: "全部" },
+      ...topics.map((item) => ({
+        href: `/notes/topic/${toParam(item)}/`,
+        label: item,
+        active: item === topic
+      }))
+    ]}
+  />
+  <FilterStrip
+    items={[
+      { href: `/notes/topic/${toParam(topic)}/`, label: "全部子主题" },
+      ...subtopics.map((item) => ({
+        href: `/notes/topic/${toParam(topic)}/${toParam(item)}/`,
+        label: item,
+        active: item === subtopic
+      }))
+    ]}
+  />
+
+  <section class="section-block">
+    <div class="entry-grid">
+      {notes.map((entry) => (
+        <EntryCard
+          href={`/notes/${entry.slug}/`}
+          title={entry.data.title}
+          description={entry.data.description}
+          date={entry.data.uploadDate ?? entry.data.date}
+          meta={[taxonomyLabel(entry.data.topic, entry.data.subtopic)]}
+          tags={entry.data.tags}
+        />
+      ))}
+    </div>
+  </section>
+</Layout>

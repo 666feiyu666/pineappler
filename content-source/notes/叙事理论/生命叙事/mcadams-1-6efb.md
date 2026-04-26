@@ -1,8 +1,9 @@
 ---
 title: "McAdams笔记（1）《我们赖以生存的故事》"
-date: "2026-04-25"
-uploadDate: "2026-04-25"
+date: "2026-03-27"
+uploadDate: "2026-03-27"
 topic: "叙事理论"
+subtopic: "生命叙事"
 tags: []
 draft: false
 ---

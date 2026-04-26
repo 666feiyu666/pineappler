@@ -1,0 +1,79 @@
+---
+import { getCollection } from "astro:content";
+import EntryCard from "../../../components/EntryCard.astro";
+import FilterStrip from "../../../components/FilterStrip.astro";
+import Layout from "../../../components/Layout.astro";
+import PageIntro from "../../../components/PageIntro.astro";
+import {
+  publishedEntries,
+  sortEntries,
+  taxonomyLabel,
+  toParam,
+  uniqueNonEmpty,
+  uniqueValues
+} from "../../../lib/content";
+
+const allEntries = sortEntries(publishedEntries(await getCollection("projects")));
+const categories = uniqueValues(allEntries.map((entry) => entry.data.category));
+
+export async function getStaticPaths() {
+  const entries = sortEntries(publishedEntries(await getCollection("projects")));
+  const categories = uniqueValues(entries.map((entry) => entry.data.category));
+  return categories.map((category) => ({
+    params: { category: toParam(category) },
+    props: {
+      category,
+      entries: entries.filter((entry) => entry.data.category === category)
+    }
+  }));
+}
+
+const { category, entries } = Astro.props;
+const subcategories = uniqueNonEmpty(entries.map((entry) => entry.data.subcategory));
+---
+
+<Layout title={`Pineappler | ${category}`} description={`${category} 分类下的项目。`}>
+  <PageIntro
+    eyebrow="Projects"
+    title={category}
+    intro={subcategories.length > 0 ? `当前分类下包含 ${subcategories.length} 个子主题。` : undefined}
+  />
+  <FilterStrip
+    items={[
+      { href: "/projects", label: "全部" },
+      ...categories.map((item) => ({
+        href: `/projects/category/${toParam(item)}/`,
+        label: item,
+        active: item === category
+      }))
+    ]}
+  />
+  {subcategories.length > 0 && (
+    <FilterStrip
+      items={[
+        { href: `/projects/category/${toParam(category)}/`, label: "全部子主题", active: true },
+        ...subcategories.map((item) => ({
+          href: `/projects/category/${toParam(category)}/${toParam(item)}/`,
+          label: item
+        }))
+      ]}
+    />
+  )}
+
+  <section class="section-block">
+    <div class="entry-grid">
+      {entries.map((entry) => (
+        <EntryCard
+          href={`/projects/${entry.slug}/`}
+          title={entry.data.title}
+          description={entry.data.description}
+          date={entry.data.date}
+          meta={[taxonomyLabel(entry.data.category, entry.data.subcategory), entry.data.status]}
+          tags={entry.data.tags}
+          imagePath={entry.data.imagePath}
+          imageAlt={entry.data.imageAlt}
+        />
+      ))}
+    </div>
+  </section>
+</Layout>

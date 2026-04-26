@@ -58,6 +58,19 @@ async function recreateDir(target) {
   await mkdir(target, { recursive: true });
 }
 
+async function readLabel(dirPath, fallback = "") {
+  if (!dirPath) {
+    return fallback;
+  }
+
+  try {
+    const raw = await readFile(path.join(dirPath, "_label.json"), "utf8");
+    return JSON.parse(raw).label || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 async function syncNotes() {
   const files = (await collectMarkdownFiles(sources.notes)).sort((left, right) =>
     left.localeCompare(right)
@@ -74,7 +87,12 @@ async function syncNotes() {
     const description = data.description || extractDescription(body, title);
     const date = data.date || formatDate(fileInfo.mtime);
     const uploadDate = data.uploadDate || formatDate(fileInfo.birthtime || fileInfo.mtime);
-    const topic = data.topic || getFolderLabel(filePath, sources.notes) || "未分类";
+    const relativeDir = path.relative(sources.notes, path.dirname(filePath));
+    const [topicParam = "", subtopicParam = ""] = relativeDir.split(path.sep).filter(Boolean);
+    const topicDir = topicParam ? path.join(sources.notes, topicParam) : "";
+    const subtopicDir = subtopicParam ? path.join(topicDir, subtopicParam) : "";
+    const topic = data.topic || (await readLabel(topicDir, topicParam)) || getFolderLabel(filePath, sources.notes) || "未分类";
+    const subtopic = data.subtopic || (subtopicParam ? await readLabel(subtopicDir, subtopicParam) : "");
     const tags = ensureArray(data.tags);
     const draft = typeof data.draft === "boolean" ? data.draft : false;
     const sourcePath = path.relative(rootDir, filePath);
@@ -86,6 +104,7 @@ async function syncNotes() {
       date,
       uploadDate,
       topic,
+      subtopic,
       tags,
       draft,
       sourcePath
@@ -112,7 +131,12 @@ async function syncWriting() {
     const title = data.title || extractTitle(body, fallbackTitle);
     const description = data.description || extractDescription(body, title);
     const date = data.date || formatDate(fileInfo.mtime);
-    const type = data.type || getFolderLabel(filePath, sources.writing) || "随笔";
+    const relativeDir = path.relative(sources.writing, path.dirname(filePath));
+    const [typeParam = "", subtypeParam = ""] = relativeDir.split(path.sep).filter(Boolean);
+    const typeDir = typeParam ? path.join(sources.writing, typeParam) : "";
+    const subtypeDir = subtypeParam ? path.join(typeDir, subtypeParam) : "";
+    const type = data.type || (await readLabel(typeDir, typeParam)) || getFolderLabel(filePath, sources.writing) || "随笔";
+    const subtype = data.subtype || (subtypeParam ? await readLabel(subtypeDir, subtypeParam) : "");
     const tags = ensureArray(data.tags);
     const draft = typeof data.draft === "boolean" ? data.draft : false;
     const format = data.format === "pdf" ? "pdf" : "markdown";
@@ -126,6 +150,7 @@ async function syncWriting() {
       description,
       date,
       type,
+      subtype,
       tags,
       draft,
       format,

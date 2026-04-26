@@ -13,6 +13,7 @@ const notes = defineCollection({
   schema: commonSchema.extend({
     uploadDate: z.coerce.date().optional(),
     topic: z.string(),
+    subtopic: z.string().default(""),
     sourcePath: z.string().optional()
   })
 });
@@ -21,6 +22,7 @@ const writing = defineCollection({
   type: "content",
   schema: commonSchema.extend({
     type: z.string(),
+    subtype: z.string().default(""),
     format: z.enum(["markdown", "pdf"]).default("markdown"),
     filePath: z.string().optional(),
     publication: z.string().optional(),
@@ -31,6 +33,8 @@ const writing = defineCollection({
 const projects = defineCollection({
   type: "content",
   schema: commonSchema.extend({
+    category: z.string().default("未分类"),
+    subcategory: z.string().default(""),
     status: z.string().default("In progress"),
     link: z.string().url().optional(),
     featured: z.boolean().default(false),

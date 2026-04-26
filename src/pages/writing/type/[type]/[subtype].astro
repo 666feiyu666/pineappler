@@ -1,0 +1,95 @@
+---
+import { getCollection } from "astro:content";
+import EntryCard from "../../../../components/EntryCard.astro";
+import FilterStrip from "../../../../components/FilterStrip.astro";
+import Layout from "../../../../components/Layout.astro";
+import PageIntro from "../../../../components/PageIntro.astro";
+import {
+  publishedEntries,
+  sortEntries,
+  taxonomyLabel,
+  toParam,
+  uniqueNonEmpty,
+  uniqueValues
+} from "../../../../lib/content";
+
+const allEntries = sortEntries(publishedEntries(await getCollection("writing")));
+const types = uniqueValues(allEntries.map((entry) => entry.data.type));
+
+export async function getStaticPaths() {
+  const entries = sortEntries(publishedEntries(await getCollection("writing")));
+  const pairs = new Map();
+
+  for (const entry of entries) {
+    if (!entry.data.subtype) continue;
+    pairs.set(`${entry.data.type}:::${entry.data.subtype}`, {
+      type: entry.data.type,
+      subtype: entry.data.subtype
+    });
+  }
+
+  return [...pairs.values()].map(({ type, subtype }) => ({
+    params: {
+      type: toParam(type),
+      subtype: toParam(subtype)
+    },
+    props: {
+      type,
+      subtype,
+      entries: entries.filter(
+        (entry) => entry.data.type === type && entry.data.subtype === subtype
+      )
+    }
+  }));
+}
+
+const { type, subtype, entries } = Astro.props;
+const subtypes = uniqueNonEmpty(
+  allEntries
+    .filter((entry) => entry.data.type === type)
+    .map((entry) => entry.data.subtype)
+);
+---
+
+<Layout
+  title={`Pineappler | ${taxonomyLabel(type, subtype)}`}
+  description={`${taxonomyLabel(type, subtype)} 下的 writing 条目。`}
+>
+  <PageIntro eyebrow="Writing" title={taxonomyLabel(type, subtype)} />
+  <FilterStrip
+    items={[
+      { href: "/writing", label: "全部" },
+      ...types.map((item) => ({
+        href: `/writing/type/${toParam(item)}/`,
+        label: item,
+        active: item === type
+      }))
+    ]}
+  />
+  <FilterStrip
+    items={[
+      { href: `/writing/type/${toParam(type)}/`, label: "全部子主题" },
+      ...subtypes.map((item) => ({
+        href: `/writing/type/${toParam(type)}/${toParam(item)}/`,
+        label: item,
+        active: item === subtype
+      }))
+    ]}
+  />
+
+  <section class="section-block">
+    <div class="entry-grid">
+      {entries.map((entry) => (
+        <EntryCard
+          href={`/writing/${entry.slug}/`}
+          title={entry.data.title}
+          description={entry.data.description}
+          date={entry.data.date}
+          meta={[taxonomyLabel(entry.data.type, entry.data.subtype)]}
+          badge={entry.data.format === "pdf" ? "PDF" : undefined}
+          tags={entry.data.tags}
+        />
+      ))}
+    </div>
+  </section>
+</Layout>

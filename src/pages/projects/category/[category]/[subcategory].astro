@@ -1,0 +1,97 @@
+---
+import { getCollection } from "astro:content";
+import EntryCard from "../../../../components/EntryCard.astro";
+import FilterStrip from "../../../../components/FilterStrip.astro";
+import Layout from "../../../../components/Layout.astro";
+import PageIntro from "../../../../components/PageIntro.astro";
+import {
+  publishedEntries,
+  sortEntries,
+  taxonomyLabel,
+  toParam,
+  uniqueNonEmpty,
+  uniqueValues
+} from "../../../../lib/content";
+
+const allEntries = sortEntries(publishedEntries(await getCollection("projects")));
+const categories = uniqueValues(allEntries.map((entry) => entry.data.category));
+
+export async function getStaticPaths() {
+  const entries = sortEntries(publishedEntries(await getCollection("projects")));
+  const pairs = new Map();
+
+  for (const entry of entries) {
+    if (!entry.data.subcategory) continue;
+    pairs.set(`${entry.data.category}:::${entry.data.subcategory}`, {
+      category: entry.data.category,
+      subcategory: entry.data.subcategory
+    });
+  }
+
+  return [...pairs.values()].map(({ category, subcategory }) => ({
+    params: {
+      category: toParam(category),
+      subcategory: toParam(subcategory)
+    },
+    props: {
+      category,
+      subcategory,
+      entries: entries.filter(
+        (entry) =>
+          entry.data.category === category && entry.data.subcategory === subcategory
+      )
+    }
+  }));
+}
+
+const { category, subcategory, entries } = Astro.props;
+const subcategories = uniqueNonEmpty(
+  allEntries
+    .filter((entry) => entry.data.category === category)
+    .map((entry) => entry.data.subcategory)
+);
+---
+
+<Layout
+  title={`Pineappler | ${taxonomyLabel(category, subcategory)}`}
+  description={`${taxonomyLabel(category, subcategory)} 下的项目。`}
+>
+  <PageIntro eyebrow="Projects" title={taxonomyLabel(category, subcategory)} />
+  <FilterStrip
+    items={[
+      { href: "/projects", label: "全部" },
+      ...categories.map((item) => ({
+        href: `/projects/category/${toParam(item)}/`,
+        label: item,
+        active: item === category
+      }))
+    ]}
+  />
+  <FilterStrip
+    items={[
+      { href: `/projects/category/${toParam(category)}/`, label: "全部子主题" },
+      ...subcategories.map((item) => ({
+        href: `/projects/category/${toParam(category)}/${toParam(item)}/`,
+        label: item,
+        active: item === subcategory
+      }))
+    ]}
+  />
+
+  <section class="section-block">
+    <div class="entry-grid">
+      {entries.map((entry) => (
+        <EntryCard
+          href={`/projects/${entry.slug}/`}
+          title={entry.data.title}
+          description={entry.data.description}
+          date={entry.data.date}
+          meta={[taxonomyLabel(entry.data.category, entry.data.subcategory), entry.data.status]}
+          tags={entry.data.tags}
+          imagePath={entry.data.imagePath}
+          imageAlt={entry.data.imageAlt}
+        />
+      ))}
+    </div>
+  </section>
+</Layout>

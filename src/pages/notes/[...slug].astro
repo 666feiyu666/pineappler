@@ -1,7 +1,7 @@
 ---
 import { getCollection } from "astro:content";
 import Layout from "../../components/Layout.astro";
-import { formatDate, publishedEntries } from "../../lib/content";
+import { formatDate, publishedEntries, taxonomyLabel } from "../../lib/content";
 
 export async function getStaticPaths() {
   const notes = publishedEntries(await getCollection("notes"));
@@ -18,7 +18,7 @@ const { Content } = await entry.render();
 <Layout title={`${entry.data.title} | Notes`} description={entry.data.description}>
   <article class="content-block">
     <p class="entry-date">
-      {entry.data.topic} · {formatDate(entry.data.uploadDate ?? entry.data.date)}
+      {taxonomyLabel(entry.data.topic, entry.data.subtopic)} · {formatDate(entry.data.uploadDate ?? entry.data.date)}
     </p>
     <h1 class="page-title">{entry.data.title}</h1>
     <p class="page-summary">{entry.data.description}</p>

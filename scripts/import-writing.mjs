@@ -42,7 +42,12 @@ async function importMarkdown(sourceFile, options) {
   const tags = options.tags ? ensureArray(options.tags) : ensureArray(data.tags);
   const draft = options.draft ? options.draft === "true" : Boolean(data.draft);
   const type = options.type;
-  const typeDir = path.join(writingRoot, toParam(type));
+  const subtype = options.subtype || data.subtype || "";
+  const typeDir = path.join(
+    writingRoot,
+    toParam(type),
+    ...(subtype ? [toParam(subtype)] : [])
+  );
   const fileName = `${slugifyFilename(options.slug || title, sourceFile)}.md`;
 
   await mkdir(typeDir, { recursive: true });
@@ -52,6 +57,7 @@ async function importMarkdown(sourceFile, options) {
     description,
     date,
     type,
+    subtype,
     tags,
     draft,
     format: "markdown",
@@ -71,12 +77,14 @@ async function importPdf(sourceFile, options) {
   const tags = ensureArray(options.tags);
   const draft = options.draft === "true";
   const type = options.type;
+  const subtype = options.subtype || "";
   const typeParam = toParam(type);
+  const subtypeParam = subtype ? toParam(subtype) : "";
   const slug = slugifyFilename(options.slug || title, sourceFile);
-  const assetDir = path.join(assetRoot, typeParam);
+  const assetDir = path.join(assetRoot, typeParam, ...(subtypeParam ? [subtypeParam] : []));
   const sourceExt = path.extname(sourceFile).toLowerCase();
   const assetPath = path.join(assetDir, `${slug}${sourceExt}`);
-  const entryDir = path.join(writingRoot, typeParam);
+  const entryDir = path.join(writingRoot, typeParam, ...(subtypeParam ? [subtypeParam] : []));
   const entryPath = path.join(entryDir, `${slug}.md`);
 
   await mkdir(assetDir, { recursive: true });
@@ -88,10 +96,11 @@ async function importPdf(sourceFile, options) {
     description,
     date,
     type,
+    subtype,
     tags,
     draft,
     format: "pdf",
-    filePath: path.posix.join("/library/writing", typeParam, `${slug}${sourceExt}`),
+    filePath: path.posix.join("/library/writing", typeParam, ...(subtypeParam ? [subtypeParam] : []), `${slug}${sourceExt}`),
     publication: options.publication,
     sourcePath: path.relative(rootDir, sourceFile)
   });
@@ -107,7 +116,7 @@ async function importPdf(sourceFile, options) {
 async function main() {
   const options = readArgs();
   if (!options.source || !options.type) {
-    throw new Error("Usage: npm run import:writing -- --source <file.md|file.pdf> --type <type>");
+    throw new Error("Usage: npm run import:writing -- --source <file.md|file.pdf> --type <type> [--subtype <subtype>]");
   }
 
   const sourceFile = path.resolve(rootDir, options.source);

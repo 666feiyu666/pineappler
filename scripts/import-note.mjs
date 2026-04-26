@@ -33,7 +33,7 @@ function readArgs() {
 async function main() {
   const options = readArgs();
   if (!options.source || !options.topic) {
-    throw new Error("Usage: npm run import:note -- --source <file.md> --topic <topic>");
+    throw new Error("Usage: npm run import:note -- --source <file.md> --topic <topic> [--subtopic <subtopic>]");
   }
 
   const sourceFile = path.resolve(rootDir, options.source);
@@ -48,7 +48,12 @@ async function main() {
   const tags = options.tags ? ensureArray(options.tags) : ensureArray(data.tags);
   const draft = options.draft ? options.draft === "true" : Boolean(data.draft);
   const topic = options.topic;
-  const topicDir = path.join(notesRoot, toParam(topic));
+  const subtopic = options.subtopic || data.subtopic || "";
+  const topicDir = path.join(
+    notesRoot,
+    toParam(topic),
+    ...(subtopic ? [toParam(subtopic)] : [])
+  );
   const fileName = `${slugifyFilename(options.slug || title, sourceFile)}.md`;
 
   await mkdir(topicDir, { recursive: true });
@@ -59,6 +64,7 @@ async function main() {
     date,
     uploadDate,
     topic,
+    subtopic,
     tags,
     draft,
     sourcePath: path.relative(rootDir, sourceFile)

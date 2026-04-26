@@ -12,7 +12,7 @@ import {
 import path from "node:path";
 
 const rootDir = process.cwd();
-const port = 4323;
+const port = Number(process.env.STUDIO_PORT || 4323);
 
 function jsonResponse(res, statusCode, payload) {
   res.writeHead(statusCode, {
@@ -128,6 +128,12 @@ async function readJson(filePath) {
 async function writeJson(filePath, value) {
   await mkdir(path.dirname(filePath), { recursive: true });
   await writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`);
+}
+
+async function ensureLabelFile(dirPath, label) {
+  if (!dirPath || !label) return;
+  await mkdir(dirPath, { recursive: true });
+  await writeJson(path.join(dirPath, "_label.json"), { label });
 }
 
 async function collectMarkdownEntries(baseDir) {
@@ -278,6 +284,30 @@ function sanitizeAssetName(fileName, fallback = "asset.png") {
   const safeExt = ext.match(/^\.[a-z0-9]+$/) ? ext : path.extname(fallback) || ".png";
   const baseName = path.basename(fileName || fallback, ext);
   return `${sanitizeAssetStem(baseName, path.basename(fallback, safeExt))}${safeExt}`;
+}
+
+function notePathParts(topic, subtopic = "") {
+  return [topic, subtopic].filter(Boolean).map((value) => toParam(value));
+}
+
+function writingPathParts(type, subtype = "") {
+  return [type, subtype].filter(Boolean).map((value) => toParam(value));
+}
+
+async function ensureNoteTaxonomy(topic, subtopic = "") {
+  const topicDir = path.join(rootDir, "content-source", "notes", toParam(topic));
+  await ensureLabelFile(topicDir, topic);
+  if (subtopic) {
+    await ensureLabelFile(path.join(topicDir, toParam(subtopic)), subtopic);
+  }
+}
+
+async function ensureWritingTaxonomy(type, subtype = "") {
+  const typeDir = path.join(rootDir, "content-source", "writing", toParam(type));
+  await ensureLabelFile(typeDir, type);
+  if (subtype) {
+    await ensureLabelFile(path.join(typeDir, toParam(subtype)), subtype);
+  }
 }
 
 function isLocalLibraryPath(filePath, prefix = "/library/") {
@@ -457,7 +487,7 @@ async function saveNote(payload) {
   const noteStem = payload.pathKey ? path.basename(payload.pathKey, ".md") : slugify(payload.title);
   const rewrittenBody = await persistMarkdownImages(payload.body.trim(), payload.images, [
     "notes",
-    toParam(payload.topic),
+    ...notePathParts(payload.topic, payload.subtopic),
     noteStem
   ]);
   const content = frontmatter({
@@ -466,58 +496,73 @@ async function saveNote(payload) {
     date: payload.date,
     uploadDate: payload.uploadDate,
     topic: payload.topic,
+    subtopic: payload.subtopic,
     tags: payload.tags,
     draft: false
   }) + `${rewrittenBody}\n`;
 
   const targetPath = payload.pathKey
     ? ensureLocalPath(payload.pathKey)
-    : path.join(rootDir, "content-source", "notes", toParam(payload.topic), `${slugify(payload.title)}.md`);
+    : path.join(
+        rootDir,
+        "content-source",
+        "notes",
+        ...notePathParts(payload.topic, payload.subtopic),
+        `${slugify(payload.title)}.md`
+      );
 
   const nextPath = path.join(
     rootDir,
     "content-source",
     "notes",
-    toParam(payload.topic),
+    ...notePathParts(payload.topic, payload.subtopic),
     path.basename(targetPath)
   );
 
+  await ensureNoteTaxonomy(payload.topic, payload.subtopic);
   await mkdir(path.dirname(nextPath), { recursive: true });
   if (payload.pathKey && targetPath !== nextPath) {
     await rm(targetPath, { force: true });
   }
   await writeFile(nextPath, content);
   await syncContent();
+  return path.relative(rootDir, nextPath);
 }
 
 async function importNote(payload) {
+  const { data, body } = splitFrontmatter(payload.content);
+  const title = payload.title || data.title || path.basename(payload.fileName || "note.md", ".md");
+  const today = new Date().toISOString().slice(0, 10);
+  const subtopic = payload.subtopic || data.subtopic || "";
   const targetPath = path.join(
     rootDir,
     "content-source",
     "notes",
-    toParam(payload.topic),
-    `${slugify(payload.title)}.md`
+    ...notePathParts(payload.topic, subtopic),
+    `${slugify(title)}.md`
   );
 
-  const { body } = splitFrontmatter(payload.content);
   const rewrittenBody = await persistMarkdownImages(body.trim(), payload.images, [
     "notes",
-    toParam(payload.topic),
-    slugify(payload.title)
+    ...notePathParts(payload.topic, subtopic),
+    slugify(title)
   ]);
   const output = frontmatter({
-    title: payload.title,
-    description: payload.description || "",
-    date: payload.date || new Date().toISOString().slice(0, 10),
-    uploadDate: payload.uploadDate || new Date().toISOString().slice(0, 10),
+    title,
+    description: payload.description || data.description || "",
+    date: payload.date || data.date || today,
+    uploadDate: payload.uploadDate || data.uploadDate || data.date || today,
     topic: payload.topic,
-    tags: payload.tags || [],
+    subtopic,
+    tags: payload.tags || data.tags || [],
     draft: false
   }) + `${rewrittenBody}\n`;
 
+  await ensureNoteTaxonomy(payload.topic, subtopic);
   await mkdir(path.dirname(targetPath), { recursive: true });
   await writeFile(targetPath, output);
   await syncContent();
+  return path.relative(rootDir, targetPath);
 }
 
 async function deleteEntry(payload) {
@@ -533,14 +578,28 @@ async function deleteEntry(payload) {
 
   if (payload.kind === "note") {
     await rm(
-      path.join(rootDir, "public", "library", "notes", toParam(data.topic || ""), path.basename(targetPath, ".md")),
+      path.join(
+        rootDir,
+        "public",
+        "library",
+        "notes",
+        ...notePathParts(data.topic || "", data.subtopic || ""),
+        path.basename(targetPath, ".md")
+      ),
       { recursive: true, force: true }
     );
   }
 
   if (payload.kind === "writing" && data.format !== "pdf") {
     await rm(
-      path.join(rootDir, "public", "library", "writing", toParam(data.type || ""), path.basename(targetPath, ".md")),
+      path.join(
+        rootDir,
+        "public",
+        "library",
+        "writing",
+        ...writingPathParts(data.type || "", data.subtype || ""),
+        path.basename(targetPath, ".md")
+      ),
       { recursive: true, force: true }
     );
   }
@@ -549,30 +608,97 @@ async function deleteEntry(payload) {
     await removeLocalAsset(data.imagePath, "/library/projects/");
   }
 
+  if (payload.kind === "project") {
+    await rm(
+      path.join(rootDir, "public", "library", "projects", path.basename(targetPath, ".md")),
+      { recursive: true, force: true }
+    );
+  }
+
   if (payload.kind === "note" || payload.kind === "writing") {
     await syncContent();
   }
 }
 
+async function importWriting(payload) {
+  const { data, body } = splitFrontmatter(payload.content);
+  const title = payload.title || data.title || path.basename(payload.fileName || "writing.md", ".md");
+  const today = new Date().toISOString().slice(0, 10);
+  const subtype = payload.subtype || data.subtype || "";
+  const targetPath = path.join(
+    rootDir,
+    "content-source",
+    "writing",
+    ...writingPathParts(payload.type, subtype),
+    `${slugify(title)}.md`
+  );
+
+  const rewrittenBody = await persistMarkdownImages(body.trim(), payload.images, [
+    "writing",
+    ...writingPathParts(payload.type, subtype),
+    slugify(title)
+  ]);
+  const output = frontmatter({
+    title,
+    description: payload.description || data.description || "",
+    date: payload.date || data.date || today,
+    type: payload.type,
+    subtype,
+    tags: payload.tags || data.tags || [],
+    draft: false,
+    format: "markdown"
+  }) + `${rewrittenBody}\n`;
+
+  await ensureWritingTaxonomy(payload.type, subtype);
+  await mkdir(path.dirname(targetPath), { recursive: true });
+  await writeFile(targetPath, output);
+  await syncContent();
+  return path.relative(rootDir, targetPath);
+}
+
 async function saveWriting(payload) {
   const targetPath = payload.pathKey
     ? ensureLocalPath(payload.pathKey)
-    : path.join(rootDir, "content-source", "writing", toParam(payload.type), `${slugify(payload.title)}.md`);
+    : path.join(
+        rootDir,
+        "content-source",
+        "writing",
+        ...writingPathParts(payload.type, payload.subtype),
+        `${slugify(payload.title)}.md`
+      );
 
   let pdfFilePath = payload.existingFilePath || "";
+  const previousFilePath = payload.existingFilePath || "";
   if (payload.format === "pdf" && payload.fileBase64) {
     const pdfName = payload.fileName || `${slugify(payload.title)}.pdf`;
-    const assetPath = path.join(rootDir, "public", "library", "writing", toParam(payload.type), pdfName);
+    const assetPath = path.join(
+      rootDir,
+      "public",
+      "library",
+      "writing",
+      ...writingPathParts(payload.type, payload.subtype),
+      pdfName
+    );
     await mkdir(path.dirname(assetPath), { recursive: true });
     await writeFile(assetPath, Buffer.from(payload.fileBase64, "base64"));
-    pdfFilePath = `/library/writing/${toParam(payload.type)}/${pdfName}`;
+    pdfFilePath = path.posix.join(
+      "/library/writing",
+      ...writingPathParts(payload.type, payload.subtype),
+      pdfName
+    );
+  }
+  if (payload.format !== "pdf" && previousFilePath) {
+    await removeLocalAsset(previousFilePath, "/library/writing/");
+    pdfFilePath = "";
+  } else if (payload.format === "pdf" && previousFilePath && previousFilePath !== pdfFilePath) {
+    await removeLocalAsset(previousFilePath, "/library/writing/");
   }
 
   const writingStem = payload.pathKey ? path.basename(payload.pathKey, ".md") : slugify(payload.title);
   const rewrittenBody = payload.format === "markdown"
     ? await persistMarkdownImages(payload.body.trim(), payload.images, [
         "writing",
-        toParam(payload.type),
+        ...writingPathParts(payload.type, payload.subtype),
         writingStem
       ])
     : payload.body.trim();
@@ -582,6 +708,7 @@ async function saveWriting(payload) {
     description: payload.description,
     date: payload.date,
     type: payload.type,
+    subtype: payload.subtype,
     tags: payload.tags,
     draft: false,
     format: payload.format,
@@ -593,37 +720,47 @@ async function saveWriting(payload) {
     rootDir,
     "content-source",
     "writing",
-    toParam(payload.type),
+    ...writingPathParts(payload.type, payload.subtype),
     path.basename(targetPath)
   );
 
+  await ensureWritingTaxonomy(payload.type, payload.subtype);
   await mkdir(path.dirname(nextPath), { recursive: true });
   if (payload.pathKey && targetPath !== nextPath) {
     await rm(targetPath, { force: true });
   }
   await writeFile(nextPath, content);
   await syncContent();
+  return path.relative(rootDir, nextPath);
 }
 
 async function saveProject(payload) {
   const targetPath = payload.pathKey
     ? ensureLocalPath(payload.pathKey)
     : path.join(rootDir, "src", "content", "projects", `${slugify(payload.title)}.md`);
+  const projectKey = path.basename(targetPath, ".md");
 
   let imagePath = payload.existingImagePath || "";
   const previousImagePath = payload.existingImagePath || "";
   if (payload.imageBase64) {
     imagePath = buildUploadedAssetPath({
-      directorySegments: ["projects", path.basename(targetPath, ".md")],
+      directorySegments: ["projects", projectKey],
       fileName: payload.imageFileName,
       fallbackName: "project-image.png"
     });
   }
 
+  const rewrittenBody = await persistMarkdownImages(payload.body.trim(), payload.images, [
+    "projects",
+    projectKey
+  ]);
+
   const content = frontmatter({
     title: payload.title,
     description: payload.description,
     date: payload.date,
+    category: payload.category || "未分类",
+    subcategory: payload.subcategory,
     tags: payload.tags,
     draft: false,
     status: payload.status || "In progress",
@@ -631,20 +768,21 @@ async function saveProject(payload) {
     link: payload.link,
     imagePath,
     imageAlt: payload.imageAlt
-  }) + `${payload.body.trim()}\n`;
+  }) + `${rewrittenBody}\n`;
 
   await mkdir(path.dirname(targetPath), { recursive: true });
   await writeFile(targetPath, content);
 
   if (payload.imageBase64) {
     await writeUploadedAsset({
-      directorySegments: ["projects", path.basename(targetPath, ".md")],
+      directorySegments: ["projects", projectKey],
       fileName: payload.imageFileName,
       base64: payload.imageBase64,
       fallbackName: "project-image.png"
     });
     await removeLocalAsset(previousImagePath, "/library/projects/");
   }
+  return path.relative(rootDir, targetPath);
 }
 
 async function parseBody(req) {
@@ -704,14 +842,14 @@ const server = createServer(async (req, res) => {
     }
 
     if (req.url === "/notes/save" && req.method === "POST") {
-      await saveNote(await parseBody(req));
-      jsonResponse(res, 200, { ok: true, state: await getSiteState() });
+      const savedPathKey = await saveNote(await parseBody(req));
+      jsonResponse(res, 200, { ok: true, state: await getSiteState(), savedPathKey });
       return;
     }
 
     if (req.url === "/notes/import" && req.method === "POST") {
-      await importNote(await parseBody(req));
-      jsonResponse(res, 200, { ok: true, state: await getSiteState() });
+      const savedPathKey = await importNote(await parseBody(req));
+      jsonResponse(res, 200, { ok: true, state: await getSiteState(), savedPathKey });
       return;
     }
 
@@ -728,14 +866,20 @@ const server = createServer(async (req, res) => {
     }
 
     if (req.url === "/writing/save" && req.method === "POST") {
-      await saveWriting(await parseBody(req));
-      jsonResponse(res, 200, { ok: true, state: await getSiteState() });
+      const savedPathKey = await saveWriting(await parseBody(req));
+      jsonResponse(res, 200, { ok: true, state: await getSiteState(), savedPathKey });
+      return;
+    }
+
+    if (req.url === "/writing/import" && req.method === "POST") {
+      const savedPathKey = await importWriting(await parseBody(req));
+      jsonResponse(res, 200, { ok: true, state: await getSiteState(), savedPathKey });
       return;
     }
 
     if (req.url === "/projects/save" && req.method === "POST") {
-      await saveProject(await parseBody(req));
-      jsonResponse(res, 200, { ok: true, state: await getSiteState() });
+      const savedPathKey = await saveProject(await parseBody(req));
+      jsonResponse(res, 200, { ok: true, state: await getSiteState(), savedPathKey });
       return;
     }
 

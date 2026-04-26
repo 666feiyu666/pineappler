@@ -1,15 +1,32 @@
 ---
 import { getCollection } from "astro:content";
 import EntryCard from "../../components/EntryCard.astro";
+import FilterStrip from "../../components/FilterStrip.astro";
 import Layout from "../../components/Layout.astro";
 import PageIntro from "../../components/PageIntro.astro";
-import { publishedEntries, sortEntries } from "../../lib/content";
+import {
+  publishedEntries,
+  sortEntries,
+  taxonomyLabel,
+  toParam,
+  uniqueValues
+} from "../../lib/content";
 
 const entries = sortEntries(publishedEntries(await getCollection("projects")));
+const categories = uniqueValues(entries.map((entry) => entry.data.category));
 ---
 
 <Layout title="Pineappler | Projects" description="按最新时间排列的项目列表。">
   <PageIntro eyebrow="Projects" title="Latest projects" />
+  <FilterStrip
+    items={[
+      { href: "/projects", label: "全部", active: true },
+      ...categories.map((category) => ({
+        href: `/projects/category/${toParam(category)}/`,
+        label: category
+      }))
+    ]}
+  />
 
   <section class="section-block">
     <div class="entry-grid">
@@ -19,7 +36,7 @@ const entries = sortEntries(publishedEntries(await getCollection("projects")));
           title={entry.data.title}
           description={entry.data.description}
           date={entry.data.date}
-          meta={[entry.data.status]}
+          meta={[taxonomyLabel(entry.data.category, entry.data.subcategory), entry.data.status]}
           tags={entry.data.tags}
           imagePath={entry.data.imagePath}
           imageAlt={entry.data.imageAlt}

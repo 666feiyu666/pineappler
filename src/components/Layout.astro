@@ -133,19 +133,6 @@ const writingTypes = uniqueValues(writing.map((entry) => entry.data.type));
       <main class="page-content">
         <slot />
       </main>
-
-      <footer class="site-footer">
-        <p>{siteMeta.location}</p>
-        <p>
-          <a href={`mailto:${siteMeta.email}`}>{siteMeta.email}</a>
-          {isDev && (
-            <>
-              {" · "}
-              <a href="/studio">Studio</a>
-            </>
-          )}
-        </p>
-      </footer>
     </div>
 
     <script is:inline>

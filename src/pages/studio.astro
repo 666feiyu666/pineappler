@@ -87,7 +87,7 @@ const studioEnabled = import.meta.env.DEV;
             <div class="page-intro">
               <p class="eyebrow">Studio / Notes</p>
               <h1>Notes</h1>
-              <p class="page-intro-copy">管理 topic、已有 notes、新建与导入操作。</p>
+              <p class="page-intro-copy">管理 topic、sub-topic、已有 notes、新建与导入操作。</p>
             </div>
 
             <div class="studio-grid studio-grid-wide">
@@ -114,7 +114,7 @@ const studioEnabled = import.meta.env.DEV;
                   <button type="submit" class="studio-button">创建主题</button>
                 </div>
                 <div class="studio-fields">
-                  <label><span>Topic name</span><input name="topicName" required placeholder="例如：生命叙事" /></label>
+                  <label><span>Topic name</span><input name="topicName" required placeholder="例如：叙事理论" /></label>
                 </div>
               </form>
 
@@ -125,6 +125,7 @@ const studioEnabled = import.meta.env.DEV;
                 </div>
                 <div class="studio-fields">
                   <label><span>Topic</span><input name="topic" list="note-topic-list" required /></label>
+                  <label><span>Sub-topic</span><input name="subtopic" placeholder="例如：生命叙事" /></label>
                   <label><span>Markdown file</span><input name="file" type="file" accept=".md,text/markdown" required /></label>
                   <label><span>Supporting images</span><input name="images" type="file" accept=".jpg,.jpeg,.png,.webp,.gif,image/jpeg,image/png,image/webp,image/gif" multiple /></label>
                 </div>
@@ -144,6 +145,7 @@ const studioEnabled = import.meta.env.DEV;
               <div class="studio-fields">
                 <label><span>Title</span><input name="title" required /></label>
                 <label><span>Topic</span><input name="topic" list="note-topic-list" required /></label>
+                <label><span>Sub-topic</span><input name="subtopic" placeholder="例如：生命叙事" /></label>
                 <label><span>Description</span><textarea name="description" rows="3"></textarea></label>
                 <label><span>Tags</span><input name="tags" placeholder="标签1, 标签2" /></label>
                 <label><span>Date</span><input name="date" type="date" /></label>
@@ -158,7 +160,7 @@ const studioEnabled = import.meta.env.DEV;
             <div class="page-intro">
               <p class="eyebrow">Studio / Writing</p>
               <h1>Writing</h1>
-              <p class="page-intro-copy">管理类型、Markdown / PDF 条目，以及已有 writing。</p>
+              <p class="page-intro-copy">管理类型、sub-type、Markdown / PDF 条目，以及已有 writing。</p>
             </div>
 
             <div class="studio-grid studio-grid-wide">
@@ -178,15 +180,30 @@ const studioEnabled = import.meta.env.DEV;
               </section>
             </div>
 
-            <form class="studio-panel" data-form="writing-type">
-              <div class="studio-panel-head">
-                <h2>New writing type</h2>
-                <button type="submit" class="studio-button">创建类型</button>
-              </div>
-              <div class="studio-fields">
-                <label><span>Type name</span><input name="typeName" required placeholder="例如：书评" /></label>
-              </div>
-            </form>
+            <div class="studio-grid">
+              <form class="studio-panel" data-form="writing-type">
+                <div class="studio-panel-head">
+                  <h2>New writing type</h2>
+                  <button type="submit" class="studio-button">创建类型</button>
+                </div>
+                <div class="studio-fields">
+                  <label><span>Type name</span><input name="typeName" required placeholder="例如：书评" /></label>
+                </div>
+              </form>
+
+              <form class="studio-panel" data-form="writing-import">
+                <div class="studio-panel-head">
+                  <h2>Import Markdown</h2>
+                  <button type="submit" class="studio-button">导入</button>
+                </div>
+                <div class="studio-fields">
+                  <label><span>Type</span><input name="type" list="writing-type-list" required /></label>
+                  <label><span>Sub-type</span><input name="subtype" placeholder="例如：生命叙事" /></label>
+                  <label><span>Markdown file</span><input name="file" type="file" accept=".md,text/markdown" required /></label>
+                  <label><span>Referenced images</span><input name="images" type="file" accept=".jpg,.jpeg,.png,.webp,.gif,image/jpeg,image/png,image/webp,image/gif" multiple /></label>
+                </div>
+              </form>
+            </div>
 
             <form class="studio-panel" data-form="writing-editor">
               <div class="studio-panel-head">
@@ -208,13 +225,32 @@ const studioEnabled = import.meta.env.DEV;
                 </label>
                 <label><span>Title</span><input name="title" required /></label>
                 <label><span>Type</span><input name="type" list="writing-type-list" required /></label>
+                <label><span>Sub-type</span><input name="subtype" placeholder="例如：生命叙事" /></label>
                 <label><span>Description</span><textarea name="description" rows="3"></textarea></label>
                 <label><span>Tags</span><input name="tags" placeholder="标签1, 标签2" /></label>
                 <label><span>Date</span><input name="date" type="date" /></label>
                 <label class="studio-pdf-field"><span>Publication</span><input name="publication" placeholder="Conference / Thesis / Journal" /></label>
                 <label class="studio-pdf-field"><span>PDF file</span><input name="file" type="file" accept="application/pdf" /></label>
-                <label class="studio-markdown-field"><span>Supporting images</span><input name="images" type="file" accept=".jpg,.jpeg,.png,.webp,.gif,image/jpeg,image/png,image/webp,image/gif" multiple /></label>
-                <label><span>Body / Abstract</span><textarea name="body" rows="14"></textarea></label>
+                <div class="studio-markdown-field" data-markdown-editor="writing">
+                  <div class="studio-markdown-head">
+                    <span>Body / Abstract</span>
+                    <div class="studio-markdown-toolbar">
+                      <button type="button" class="studio-toolbar-button" data-editor-command="heading">H2</button>
+                      <button type="button" class="studio-toolbar-button" data-editor-command="bold">Bold</button>
+                      <button type="button" class="studio-toolbar-button" data-editor-command="quote">Quote</button>
+                      <button type="button" class="studio-toolbar-button" data-editor-command="list">List</button>
+                      <button type="button" class="studio-toolbar-button" data-editor-command="code">Code</button>
+                      <button type="button" class="studio-toolbar-button" data-editor-command="image">Image</button>
+                    </div>
+                  </div>
+                  <p class="studio-hint studio-markdown-hint">Markdown 模式支持拖拽、粘贴截图，或直接插入多张图片。</p>
+                  <input type="file" accept=".jpg,.jpeg,.png,.webp,.gif,image/jpeg,image/png,image/webp,image/gif" multiple hidden data-markdown-upload />
+                  <div class="studio-markdown-shell">
+                    <textarea name="body" rows="18" data-markdown-input="writing"></textarea>
+                    <div class="studio-markdown-preview prose-block" data-markdown-preview="writing"></div>
+                  </div>
+                  <div class="studio-upload-list" data-markdown-uploads="writing"></div>
+                </div>
               </div>
             </form>
           </section>
@@ -223,7 +259,7 @@ const studioEnabled = import.meta.env.DEV;
             <div class="page-intro">
               <p class="eyebrow">Studio / Projects</p>
               <h1>Projects</h1>
-              <p class="page-intro-copy">管理已有 project，并编辑项目页面内容。</p>
+              <p class="page-intro-copy">管理 project 的 category / subcategory，并编辑项目页面内容。</p>
             </div>
 
             <section class="studio-panel">
@@ -247,6 +283,8 @@ const studioEnabled = import.meta.env.DEV;
               <input type="hidden" name="existingImagePath" />
               <div class="studio-fields">
                 <label><span>Title</span><input name="title" required /></label>
+                <label><span>Category</span><input name="category" required placeholder="例如：研究工具" /></label>
+                <label><span>Subcategory</span><input name="subcategory" placeholder="例如：阅读工作流" /></label>
                 <label><span>Description</span><textarea name="description" rows="3"></textarea></label>
                 <label><span>Status</span><input name="status" placeholder="In progress / Planned / Published" /></label>
                 <label><span>Link</span><input name="link" placeholder="https://example.com" /></label>
@@ -255,7 +293,26 @@ const studioEnabled = import.meta.env.DEV;
                 <label><span>Image alt</span><input name="imageAlt" placeholder="项目封面说明" /></label>
                 <label><span>Upload / Replace image</span><input name="imageFile" type="file" accept=".jpg,.jpeg,.png,.webp,.gif,image/jpeg,image/png,image/webp,image/gif" /></label>
                 <p class="studio-file-meta" data-project-image-meta>当前未设置项目图片。</p>
-                <label><span>Body</span><textarea name="body" rows="14"></textarea></label>
+                <div class="studio-markdown-field" data-markdown-editor="project">
+                  <div class="studio-markdown-head">
+                    <span>Body</span>
+                    <div class="studio-markdown-toolbar">
+                      <button type="button" class="studio-toolbar-button" data-editor-command="heading">H2</button>
+                      <button type="button" class="studio-toolbar-button" data-editor-command="bold">Bold</button>
+                      <button type="button" class="studio-toolbar-button" data-editor-command="quote">Quote</button>
+                      <button type="button" class="studio-toolbar-button" data-editor-command="list">List</button>
+                      <button type="button" class="studio-toolbar-button" data-editor-command="code">Code</button>
+                      <button type="button" class="studio-toolbar-button" data-editor-command="image">Image</button>
+                    </div>
+                  </div>
+                  <p class="studio-hint studio-markdown-hint">可直接拖拽、粘贴多张图片到正文里，适合项目过程记录与图文排版。</p>
+                  <input type="file" accept=".jpg,.jpeg,.png,.webp,.gif,image/jpeg,image/png,image/webp,image/gif" multiple hidden data-markdown-upload />
+                  <div class="studio-markdown-shell">
+                    <textarea name="body" rows="18" data-markdown-input="project"></textarea>
+                    <div class="studio-markdown-preview prose-block" data-markdown-preview="project"></div>
+                  </div>
+                  <div class="studio-upload-list" data-markdown-uploads="project"></div>
+                </div>
               </div>
             </form>
           </section>

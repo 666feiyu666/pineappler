@@ -43,3 +43,33 @@ export function uniqueValues(values: string[]) {
     left.localeCompare(right, "zh-CN")
   );
 }
+
+export function taxonomyLabel(primary: string, secondary?: string) {
+  return secondary ? `${primary} / ${secondary}` : primary;
+}
+
+export function uniqueNonEmpty(values: Array<string | undefined | null>) {
+  return uniqueValues(values.filter(Boolean) as string[]);
+}
+
+export function taxonomyPathSegments(primary: string, secondary?: string) {
+  return [primary, secondary].filter(Boolean) as string[];
+}
+
+export function groupByLabel<T>(items: T[], getLabel: (item: T) => string) {
+  const groups = new Map<string, T[]>();
+
+  for (const item of items) {
+    const label = getLabel(item);
+    const bucket = groups.get(label);
+    if (bucket) {
+      bucket.push(item);
+      continue;
+    }
+    groups.set(label, [item]);
+  }
+
+  return [...groups.entries()]
+    .sort(([left], [right]) => left.localeCompare(right, "zh-CN"))
+    .map(([label, entries]) => ({ label, entries }));
+}

@@ -1,7 +1,7 @@
 ---
 import { getCollection } from "astro:content";
 import Layout from "../components/Layout.astro";
-import { homeImage, homeQuote } from "../data/site";
+import { homeImage, homeQuote, siteMeta } from "../data/site";
 import { publishedEntries, sortEntries } from "../lib/content";
 
 const latestNote = sortEntries(publishedEntries(await getCollection("notes")))[0];
@@ -13,15 +13,12 @@ const latestProject = sortEntries(publishedEntries(await getCollection("projects
   <section class="home-stage">
     <div class="quote-panel">
       <p class="eyebrow">Home</p>
-      <blockquote class="home-quote">{homeQuote.text}</blockquote>
-      <p class="quote-source">{homeQuote.source}</p>
-
-      <div class="home-links">
-        <a href="/about">About</a>
-        <a href="/notes">Notes</a>
-        <a href="/writing">Writing</a>
-        <a href="/projects">Projects</a>
-      </div>
+      <aside class="quote-copy" aria-label="Home epigraph">
+        <p class="epigraph-label">题词</p>
+        <blockquote class="home-quote">{homeQuote.text}</blockquote>
+        <p class="quote-source">{homeQuote.source}</p>
+        <p class="home-stage-intro">{siteMeta.description}</p>
+      </aside>
     </div>
 
     <figure class="home-image-frame">
@@ -44,6 +41,15 @@ const latestProject = sortEntries(publishedEntries(await getCollection("projects
         </>
       )}
     </figure>
+
+    <div class="home-stage-footer">
+      <div class="home-links">
+        <a href="/about">About</a>
+        <a href="/notes">Notes</a>
+        <a href="/writing">Writing</a>
+        <a href="/projects">Projects</a>
+      </div>
+    </div>
   </section>
 
   <section class="home-recent">
