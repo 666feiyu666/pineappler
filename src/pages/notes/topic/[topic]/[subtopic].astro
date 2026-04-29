@@ -5,16 +5,16 @@ import FilterStrip from "../../../../components/FilterStrip.astro";
 import Layout from "../../../../components/Layout.astro";
 import PageIntro from "../../../../components/PageIntro.astro";
 import {
+  orderedTaxonomyValues,
   publishedEntries,
   sortEntries,
   taxonomyLabel,
   toParam,
-  uniqueNonEmpty,
-  uniqueValues
+  uniqueNonEmpty
 } from "../../../../lib/content";
 
 const allNotes = sortEntries(publishedEntries(await getCollection("notes")));
-const topics = uniqueValues(allNotes.map((entry) => entry.data.topic));
+const topics = orderedTaxonomyValues(allNotes.map((entry) => entry.data.topic), "notesTopics");
 
 export async function getStaticPaths() {
   const notes = sortEntries(publishedEntries(await getCollection("notes")));

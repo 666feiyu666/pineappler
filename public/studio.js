@@ -1,5 +1,9 @@
-const apiBase = `${window.location.protocol}//${window.location.hostname}:4323`;
+const backendHost = ["localhost", "::1"].includes(window.location.hostname)
+  ? "127.0.0.1"
+  : window.location.hostname;
+const apiBase = `${window.location.protocol}//${backendHost}:4323`;
 const sectionStorageKey = "studio-active-section";
+const defaultPublishCommand = "npx @azure/static-web-apps-cli deploy ./dist --env production --deployment-token 7a52d9beab6a12c6092992e0ac890deb78c87f6a0a4707e6d841823f6402626c07-b6ba54d6-58c7-4ff9-b196-a3e106fb87e300003040de665000";
 
 const statusNode = document.querySelector("[data-status]");
 const noteTopicList = document.querySelector("#note-topic-list");
@@ -9,6 +13,7 @@ const state = {
   site: null,
   topics: [],
   writingTypes: [],
+  projectCategories: [],
   notes: [],
   writings: [],
   projects: []
@@ -23,6 +28,7 @@ const ui = {
   noteList: document.querySelector('[data-list="notes"]'),
   writingTypeList: document.querySelector('[data-list="writing-types"]'),
   writingList: document.querySelector('[data-list="writing"]'),
+  projectCategoryList: document.querySelector('[data-list="project-categories"]'),
   projectList: document.querySelector('[data-list="projects"]'),
   workflowNote: document.querySelector("[data-workflow-note]"),
   logOutput: document.querySelector("[data-log-output]"),
@@ -41,6 +47,7 @@ const ui = {
 };
 
 const markdownEditors = {};
+const tagInputs = {};
 
 function setStatus(message, tone = "muted") {
   if (!statusNode) return;
@@ -96,9 +103,140 @@ function slugify(value) {
 
 function splitTags(value) {
   return value
-    .split(",")
+    .split(/[,，;；\n]+/)
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function createTagInput(key, form) {
+  const container = form?.querySelector(`[data-tag-input="${key}"]`);
+  if (!container) return null;
+
+  const hiddenInput = container.querySelector('input[type="hidden"][name="tags"]');
+  const draftInput = container.querySelector(`[data-tag-draft="${key}"]`);
+  const chipsNode = container.querySelector(`[data-tag-chips="${key}"]`);
+  const state = {
+    key,
+    container,
+    hiddenInput,
+    draftInput,
+    chipsNode,
+    tags: []
+  };
+
+  const sync = () => {
+    state.hiddenInput.value = state.tags.join(", ");
+  };
+
+  const render = () => {
+    state.chipsNode.innerHTML = "";
+    state.tags.forEach((tag, index) => {
+      const chip = document.createElement("span");
+      chip.className = "studio-tag-chip";
+
+      const label = document.createElement("span");
+      label.textContent = tag;
+
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "studio-tag-chip-remove";
+      remove.dataset.tagIndex = String(index);
+      remove.dataset.tagOwner = key;
+      remove.setAttribute("aria-label", `删除标签 ${tag}`);
+      remove.textContent = "×";
+
+      chip.append(label, remove);
+      state.chipsNode.appendChild(chip);
+    });
+    state.container.classList.toggle("has-tags", state.tags.length > 0);
+    sync();
+  };
+
+  const addMany = (values) => {
+    const nextValues = Array.isArray(values) ? values : splitTags(values);
+    nextValues.forEach((value) => {
+      const tag = String(value || "").trim();
+      if (!tag || state.tags.includes(tag)) return;
+      state.tags.push(tag);
+    });
+    render();
+  };
+
+  const set = (values) => {
+    state.tags = [];
+    addMany(values);
+    state.draftInput.value = "";
+  };
+
+  const commitDraft = () => {
+    const draft = state.draftInput.value.trim();
+    if (!draft) return;
+    addMany(draft);
+    state.draftInput.value = "";
+  };
+
+  state.container.addEventListener("click", () => {
+    state.draftInput.focus();
+  });
+
+  state.draftInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === "," || event.key === "，" || event.key === ";" || event.key === "；") {
+      event.preventDefault();
+      commitDraft();
+      return;
+    }
+
+    if (event.key === "Backspace" && !state.draftInput.value && state.tags.length > 0) {
+      state.tags.pop();
+      render();
+    }
+  });
+
+  state.draftInput.addEventListener("blur", commitDraft);
+
+  state.draftInput.addEventListener("input", () => {
+    const fragments = splitTags(state.draftInput.value);
+    const endsWithDelimiter = /[,，;；\n]\s*$/.test(state.draftInput.value);
+    if (endsWithDelimiter && fragments.length > 0) {
+      addMany(fragments);
+      state.draftInput.value = "";
+    }
+  });
+
+  state.chipsNode.addEventListener("click", (event) => {
+    const target = event.target.closest("[data-tag-index]");
+    if (!target) return;
+    const index = Number(target.dataset.tagIndex);
+    if (Number.isNaN(index)) return;
+    state.tags.splice(index, 1);
+    render();
+    state.draftInput.focus();
+  });
+
+  sync();
+  state.set = set;
+  state.addMany = addMany;
+  state.render = render;
+  state.sync = sync;
+  state.commitDraft = commitDraft;
+  return state;
+}
+
+function resetTagInput(key) {
+  tagInputs[key]?.set([]);
+}
+
+function setTagInputValue(key, value) {
+  tagInputs[key]?.set(value || []);
+}
+
+function getTagInputValue(key) {
+  const state = tagInputs[key];
+  return state ? [...state.tags] : [];
+}
+
+function commitTagDraft(key) {
+  tagInputs[key]?.commitDraft?.();
 }
 
 function fillDatalist(target, values) {
@@ -110,7 +248,24 @@ function taxonomyLabel(primary, secondary) {
   return [primary, secondary].filter(Boolean).join(" / ");
 }
 
-function renderChipList(target, values, kind) {
+const taxonomyConfigs = {
+  topic: {
+    stateKey: "topics",
+    orderKey: "notesTopics",
+    deleteAction: "delete-topic"
+  },
+  "writing-type": {
+    stateKey: "writingTypes",
+    orderKey: "writingTypes",
+    deleteAction: "delete-writing-type"
+  },
+  "project-category": {
+    stateKey: "projectCategories",
+    orderKey: "projectCategories"
+  }
+};
+
+function renderTaxonomyList(target, values, kind) {
   if (!target) return;
   target.innerHTML = "";
 
@@ -119,7 +274,7 @@ function renderChipList(target, values, kind) {
     return;
   }
 
-  values.forEach((value) => {
+  values.forEach((value, index) => {
     const item = document.createElement("div");
     item.className = "studio-chip-item";
 
@@ -127,16 +282,56 @@ function renderChipList(target, values, kind) {
     chip.className = "studio-chip";
     chip.textContent = value;
 
-    const del = document.createElement("button");
-    del.type = "button";
-    del.className = "studio-chip-delete";
-    del.dataset.action = kind === "topic" ? "delete-topic" : "delete-writing-type";
-    del.dataset.name = value;
-    del.textContent = "删除";
+    const actions = document.createElement("div");
+    actions.className = "studio-chip-actions";
 
-    item.append(chip, del);
+    const up = document.createElement("button");
+    up.type = "button";
+    up.className = "studio-chip-order";
+    up.dataset.action = "move-taxonomy";
+    up.dataset.kind = kind;
+    up.dataset.direction = "up";
+    up.dataset.name = value;
+    up.textContent = "↑";
+    up.disabled = index === 0;
+
+    const down = document.createElement("button");
+    down.type = "button";
+    down.className = "studio-chip-order";
+    down.dataset.action = "move-taxonomy";
+    down.dataset.kind = kind;
+    down.dataset.direction = "down";
+    down.dataset.name = value;
+    down.textContent = "↓";
+    down.disabled = index === values.length - 1;
+
+    actions.append(up, down);
+
+    const deleteAction = taxonomyConfigs[kind]?.deleteAction;
+    if (deleteAction) {
+      const del = document.createElement("button");
+      del.type = "button";
+      del.className = "studio-chip-delete";
+      del.dataset.action = deleteAction;
+      del.dataset.name = value;
+      del.textContent = "删除";
+      actions.append(del);
+    }
+
+    item.append(chip, actions);
     target.appendChild(item);
   });
+}
+
+async function saveTaxonomyOrder(orderKey, values) {
+  const payload = await request("/taxonomy/order", {
+    method: "POST",
+    body: JSON.stringify({
+      kind: orderKey,
+      values
+    })
+  });
+  applyState(payload.state);
 }
 
 function renderEntryList(target, entries, kind) {
@@ -167,7 +362,7 @@ function renderEntryList(target, entries, kind) {
         .filter(Boolean)
         .join(" · ");
     } else if (kind === "writing") {
-      meta.textContent = [taxonomyLabel(entry.data.type, entry.data.subtype), entry.data.format, entry.data.date]
+      meta.textContent = [taxonomyLabel(entry.data.type, entry.data.subtype), entry.data.date]
         .filter(Boolean)
         .join(" · ");
     } else {
@@ -664,12 +859,6 @@ async function getMarkdownEditorPayload(key) {
   };
 }
 
-function setMarkdownEditorPassive(key, passive) {
-  const editor = getEditor(key);
-  if (!editor) return;
-  editor.container.classList.toggle("is-passive", passive);
-}
-
 function resetNoteForm() {
   const form = ui.noteForm;
   form.reset();
@@ -678,6 +867,7 @@ function resetNoteForm() {
   form.uploadDate.value = today;
   form.subtopic.value = "";
   form.images.value = "";
+  resetTagInput("note");
   setEditorTitle("note", "Note editor");
 }
 
@@ -685,12 +875,10 @@ function resetWritingForm() {
   const form = ui.writingForm;
   form.reset();
   form.pathKey.value = "";
-  form.existingFilePath.value = "";
   form.date.value = today;
-  form.format.value = "markdown";
   form.subtype.value = "";
   resetMarkdownEditor("writing");
-  updateWritingFormatUI();
+  resetTagInput("writing");
   setEditorTitle("writing", "Writing editor");
 }
 
@@ -698,24 +886,18 @@ function resetProjectForm() {
   const form = ui.projectForm;
   form.reset();
   form.pathKey.value = "";
+  form.slug.value = "";
   form.existingImagePath.value = "";
   form.date.value = today;
   form.category.value = "未分类";
   form.subcategory.value = "";
   form.status.value = "In progress";
   resetMarkdownEditor("project");
+  resetTagInput("project");
   if (ui.projectImageMeta) {
     ui.projectImageMeta.textContent = "当前未设置项目图片。";
   }
   setEditorTitle("project", "Project editor");
-}
-
-function updateWritingFormatUI() {
-  const isPdf = ui.writingForm.format.value === "pdf";
-  ui.writingForm.querySelectorAll(".studio-pdf-field").forEach((field) => {
-    field.classList.toggle("is-hidden", !isPdf);
-  });
-  setMarkdownEditorPassive("writing", isPdf);
 }
 
 function populateSiteForms() {
@@ -726,6 +908,7 @@ function populateSiteForms() {
   ui.homeForm.location.value = state.site.meta.location || "";
   ui.homeForm.homeQuote.value = state.site.homeQuote.text || "";
   ui.homeForm.homeQuoteSource.value = state.site.homeQuote.source || "";
+  ui.homeForm.homeNews.value = (state.site.homeNews || []).join("\n");
   ui.homeForm.existingImagePath.value = state.site.homeImage?.path || "";
   ui.homeForm.homeImageAlt.value = state.site.homeImage?.alt || "";
   if (ui.homeImageMeta) {
@@ -743,15 +926,16 @@ function populateSiteForms() {
   ui.aboutForm.aboutContact.value = state.site.about.contact || "";
 
   ui.workflowForm.buildCommand.value = state.site.workflow?.buildCommand || "npm run build";
-  ui.workflowForm.publishCommand.value = state.site.workflow?.publishCommand || "";
-  ui.workflowForm.publishNote.value = state.site.workflow?.publishNote || "";
-  ui.workflowNote.textContent = state.site.workflow?.publishNote || "未配置发布说明。";
+  ui.workflowForm.publishCommand.value = state.site.workflow?.publishCommand || defaultPublishCommand;
+  ui.workflowForm.publishNote.value = state.site.workflow?.publishNote || "Publish 会先执行 Build，再部署到 Azure Static Web Apps。";
+  ui.workflowNote.textContent = state.site.workflow?.publishNote || "Publish 会先执行 Build，再部署到 Azure Static Web Apps。";
 }
 
 function applyState(next) {
   state.site = next.site;
   state.topics = next.topics;
   state.writingTypes = next.writingTypes;
+  state.projectCategories = next.projectCategories || [];
   state.notes = next.notes;
   state.writings = next.writings;
   state.projects = next.projects;
@@ -759,8 +943,9 @@ function applyState(next) {
   populateSiteForms();
   fillDatalist(noteTopicList, state.topics);
   fillDatalist(writingTypeList, state.writingTypes);
-  renderChipList(ui.topicList, state.topics, "topic");
-  renderChipList(ui.writingTypeList, state.writingTypes, "writing-type");
+  renderTaxonomyList(ui.topicList, state.topics, "topic");
+  renderTaxonomyList(ui.writingTypeList, state.writingTypes, "writing-type");
+  renderTaxonomyList(ui.projectCategoryList, state.projectCategories, "project-category");
   renderEntryList(ui.noteList, state.notes, "note");
   renderEntryList(ui.writingList, state.writings, "writing");
   renderEntryList(ui.projectList, state.projects, "project");
@@ -787,7 +972,7 @@ function loadNote(pathKey) {
   ui.noteForm.topic.value = entry.data.topic || "";
   ui.noteForm.subtopic.value = entry.data.subtopic || "";
   ui.noteForm.description.value = entry.data.description || "";
-  ui.noteForm.tags.value = (entry.data.tags || []).join(", ");
+  setTagInputValue("note", entry.data.tags || []);
   ui.noteForm.date.value = entry.data.date || today;
   ui.noteForm.uploadDate.value = entry.data.uploadDate || entry.data.date || today;
   ui.noteForm.body.value = entry.body || "";
@@ -798,19 +983,14 @@ function loadWriting(pathKey) {
   const entry = findEntry(state.writings, pathKey);
   if (!entry) return;
   setActiveSection("writing");
-  ui.writingForm.file.value = "";
   ui.writingForm.pathKey.value = entry.pathKey;
-  ui.writingForm.existingFilePath.value = entry.data.filePath || "";
-  ui.writingForm.format.value = entry.data.format || "markdown";
   ui.writingForm.title.value = entry.data.title || "";
   ui.writingForm.type.value = entry.data.type || "";
   ui.writingForm.subtype.value = entry.data.subtype || "";
   ui.writingForm.description.value = entry.data.description || "";
-  ui.writingForm.tags.value = (entry.data.tags || []).join(", ");
+  setTagInputValue("writing", entry.data.tags || []);
   ui.writingForm.date.value = entry.data.date || today;
-  ui.writingForm.publication.value = entry.data.publication || "";
   setMarkdownEditorValue("writing", entry.body || "");
-  updateWritingFormatUI();
   setEditorTitle("writing", `Editing: ${entry.data.title || entry.pathKey}`);
 }
 
@@ -820,13 +1000,14 @@ function loadProject(pathKey) {
   setActiveSection("projects");
   ui.projectForm.imageFile.value = "";
   ui.projectForm.pathKey.value = entry.pathKey;
+  ui.projectForm.slug.value = entry.data.slug || entry.slug || "";
   ui.projectForm.title.value = entry.data.title || "";
   ui.projectForm.category.value = entry.data.category || "未分类";
   ui.projectForm.subcategory.value = entry.data.subcategory || "";
   ui.projectForm.description.value = entry.data.description || "";
   ui.projectForm.status.value = entry.data.status || "In progress";
   ui.projectForm.link.value = entry.data.link || "";
-  ui.projectForm.tags.value = (entry.data.tags || []).join(", ");
+  setTagInputValue("project", entry.data.tags || []);
   ui.projectForm.date.value = entry.data.date || today;
   ui.projectForm.existingImagePath.value = entry.data.imagePath || "";
   ui.projectForm.imageAlt.value = entry.data.imageAlt || "";
@@ -893,6 +1074,10 @@ async function saveHome() {
       location: form.location.value.trim(),
       homeQuote: form.homeQuote.value.trim(),
       homeQuoteSource: form.homeQuoteSource.value.trim(),
+      homeNews: form.homeNews.value
+        .split("\n")
+        .map((item) => item.trim())
+        .filter(Boolean),
       existingImagePath: form.existingImagePath.value.trim(),
       homeImageAlt: form.homeImageAlt.value.trim(),
       homeImageFileName: imageFile?.name || "",
@@ -973,6 +1158,7 @@ async function importNote() {
 
 async function saveNote() {
   const form = ui.noteForm;
+  commitTagDraft("note");
   const payload = await request("/notes/save", {
     method: "POST",
     body: JSON.stringify({
@@ -981,7 +1167,7 @@ async function saveNote() {
       topic: form.topic.value.trim(),
       subtopic: form.subtopic.value.trim(),
       description: form.description.value.trim(),
-      tags: splitTags(form.tags.value),
+      tags: getTagInputValue("note"),
       date: form.date.value || today,
       uploadDate: form.uploadDate.value || today,
       body: form.body.value,
@@ -1033,29 +1219,23 @@ async function importWriting() {
 
 async function saveWriting() {
   const form = ui.writingForm;
-  const file = form.file.files?.[0];
+  commitTagDraft("writing");
   const markdownPayload = await getMarkdownEditorPayload("writing");
   const payload = await request("/writing/save", {
     method: "POST",
     body: JSON.stringify({
       pathKey: form.pathKey.value || "",
-      existingFilePath: form.existingFilePath.value || "",
-      format: form.format.value,
       title: form.title.value.trim(),
       type: form.type.value.trim(),
       subtype: form.subtype.value.trim(),
       description: form.description.value.trim(),
-      tags: splitTags(form.tags.value),
+      tags: getTagInputValue("writing"),
       date: form.date.value || today,
-      publication: form.publication.value.trim(),
       body: markdownPayload.body,
-      fileName: file?.name || "",
-      fileBase64: file ? await toBase64(file) : "",
-      images: form.format.value === "markdown" ? markdownPayload.images : []
+      images: markdownPayload.images
     })
   });
   applyState(payload.state);
-  form.file.value = "";
   const saved = focusSavedEntry(payload.state.writings, payload.savedPathKey, form.title.value.trim());
   if (saved) {
     loadWriting(saved.pathKey);
@@ -1064,19 +1244,21 @@ async function saveWriting() {
 
 async function saveProject() {
   const form = ui.projectForm;
+  commitTagDraft("project");
   const imageFile = form.imageFile.files?.[0];
   const markdownPayload = await getMarkdownEditorPayload("project");
   const payload = await request("/projects/save", {
     method: "POST",
     body: JSON.stringify({
       pathKey: form.pathKey.value || "",
+      slug: form.slug.value.trim(),
       title: form.title.value.trim(),
       category: form.category.value.trim(),
       subcategory: form.subcategory.value.trim(),
       description: form.description.value.trim(),
       status: form.status.value.trim(),
       link: form.link.value.trim(),
-      tags: splitTags(form.tags.value),
+      tags: getTagInputValue("project"),
       date: form.date.value || today,
       body: markdownPayload.body,
       images: markdownPayload.images,
@@ -1114,16 +1296,31 @@ async function runWorkflow(kind) {
   if (payload.state) {
     applyState(payload.state);
   }
+  const steps = payload.result.steps || [payload.result];
   setLog(
-    [
-      `command: ${payload.result.command || state.site.workflow?.[kind === "build" ? "buildCommand" : "publishCommand"] || ""}`,
-      `exit code: ${payload.result.code}`,
-      "",
-      payload.result.stdout || "",
-      payload.result.stderr || ""
-    ].join("\n")
+    steps
+      .map((step) =>
+        [
+          `== ${step.name || kind} ==`,
+          `command: ${step.command || ""}`,
+          `exit code: ${step.code}`,
+          "",
+          step.stdout || "",
+          step.stderr || ""
+        ].join("\n")
+      )
+      .join("\n\n")
   );
-  setStatus(kind === "build" ? "Build 已执行。" : "Publish 已执行。", "ok");
+  setStatus(
+    payload.result.ok
+      ? kind === "build"
+        ? "Build 已执行。"
+        : "Build + Publish 已执行。"
+      : kind === "build"
+        ? "Build 执行失败。"
+        : "Publish 执行失败，请检查日志。",
+    payload.result.ok ? "ok" : "error"
+  );
 }
 
 document.addEventListener("click", async (event) => {
@@ -1136,6 +1333,20 @@ document.addEventListener("click", async (event) => {
     if (target.dataset.entryType === "project") return loadProject(target.dataset.path);
 
     switch (target.dataset.action) {
+      case "move-taxonomy": {
+        const config = taxonomyConfigs[target.dataset.kind];
+        if (!config) return;
+        const labels = [...state[config.stateKey]];
+        const index = labels.indexOf(target.dataset.name);
+        if (index === -1) return;
+        const offset = target.dataset.direction === "up" ? -1 : 1;
+        const nextIndex = index + offset;
+        if (nextIndex < 0 || nextIndex >= labels.length) return;
+        [labels[index], labels[nextIndex]] = [labels[nextIndex], labels[index]];
+        await saveTaxonomyOrder(config.orderKey, labels);
+        setStatus("顺序已更新。", "ok");
+        return;
+      }
       case "new-note":
         resetNoteForm();
         return setActiveSection("notes");
@@ -1185,7 +1396,7 @@ document.addEventListener("click", async (event) => {
         return;
       case "run-publish":
         setActiveSection("workflow");
-        setStatus("正在执行 Publish...", "muted");
+        setStatus("正在执行 Build + Publish...", "muted");
         await runWorkflow("publish");
         return;
     }
@@ -1196,8 +1407,9 @@ document.addEventListener("click", async (event) => {
 
 markdownEditors.writing = initMarkdownEditor("writing");
 markdownEditors.project = initMarkdownEditor("project");
-
-ui.writingForm.format.addEventListener("change", updateWritingFormatUI);
+tagInputs.note = createTagInput("note", ui.noteForm);
+tagInputs.writing = createTagInput("writing", ui.writingForm);
+tagInputs.project = createTagInput("project", ui.projectForm);
 
 ui.homeForm.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -1302,7 +1514,6 @@ ui.workflowForm.addEventListener("submit", async (event) => {
 resetNoteForm();
 resetWritingForm();
 resetProjectForm();
-updateWritingFormatUI();
 setLog("等待执行 Build 或 Publish。");
 setActiveSection(getInitialSection());
 

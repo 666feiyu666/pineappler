@@ -5,18 +5,18 @@ import FilterStrip from "../../components/FilterStrip.astro";
 import Layout from "../../components/Layout.astro";
 import PageIntro from "../../components/PageIntro.astro";
 import {
+  orderedTaxonomyValues,
   publishedEntries,
   sortEntries,
   taxonomyLabel,
-  toParam,
-  uniqueValues
+  toParam
 } from "../../lib/content";
 
 const entries = sortEntries(publishedEntries(await getCollection("writing")));
-const types = uniqueValues(entries.map((entry) => entry.data.type));
+const types = orderedTaxonomyValues(entries.map((entry) => entry.data.type), "writingTypes");
 ---
 
-<Layout title="Pineappler | Writing" description="按最新时间排列的文章与 PDF 条目。">
+<Layout title="Pineappler | Writing" description="按最新时间排列的 Markdown 文章列表。">
   <PageIntro eyebrow="Writing" title="Latest writing" />
   <FilterStrip
     items={[
@@ -37,7 +37,6 @@ const types = uniqueValues(entries.map((entry) => entry.data.type));
           description={entry.data.description}
           date={entry.data.date}
           meta={[taxonomyLabel(entry.data.type, entry.data.subtype)]}
-          badge={entry.data.format === "pdf" ? "PDF" : undefined}
           tags={entry.data.tags}
         />
       ))}

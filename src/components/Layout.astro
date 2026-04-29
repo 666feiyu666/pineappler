@@ -3,10 +3,10 @@ import "../styles/global.css";
 import { getCollection } from "astro:content";
 import { siteMeta } from "../data/site";
 import {
+  orderedTaxonomyValues,
   publishedEntries,
   sortEntries,
-  toParam,
-  uniqueValues
+  toParam
 } from "../lib/content";
 
 interface Props {
@@ -24,8 +24,12 @@ const pathname = Astro.url.pathname;
 const notes = sortEntries(publishedEntries(await getCollection("notes")));
 const writing = sortEntries(publishedEntries(await getCollection("writing")));
 const projects = sortEntries(publishedEntries(await getCollection("projects")));
-const noteTopics = uniqueValues(notes.map((entry) => entry.data.topic));
-const writingTypes = uniqueValues(writing.map((entry) => entry.data.type));
+const noteTopics = orderedTaxonomyValues(notes.map((entry) => entry.data.topic), "notesTopics");
+const writingTypes = orderedTaxonomyValues(writing.map((entry) => entry.data.type), "writingTypes");
+const projectCategories = orderedTaxonomyValues(
+  projects.map((entry) => entry.data.category),
+  "projectCategories"
+);
 ---
 
 <!doctype html>
@@ -51,6 +55,12 @@ const writingTypes = uniqueValues(writing.map((entry) => entry.data.type));
             class:list={["nav-link", pathname.startsWith("/about") && "active"]}
           >
             About
+          </a>
+          <a
+            href="/search"
+            class:list={["nav-link", pathname.startsWith("/search") && "active"]}
+          >
+            Search
           </a>
 
           <div
@@ -122,8 +132,8 @@ const writingTypes = uniqueValues(writing.map((entry) => entry.data.type));
               </button>
             </div>
             <div class="nav-dropdown">
-              {projects.map((entry) => (
-                <a href={`/projects/${entry.slug}/`}>{entry.data.title}</a>
+              {projectCategories.map((category) => (
+                <a href={`/projects/category/${toParam(category)}/`}>{category}</a>
               ))}
             </div>
           </div>

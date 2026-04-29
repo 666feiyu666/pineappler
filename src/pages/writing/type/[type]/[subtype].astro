@@ -5,16 +5,16 @@ import FilterStrip from "../../../../components/FilterStrip.astro";
 import Layout from "../../../../components/Layout.astro";
 import PageIntro from "../../../../components/PageIntro.astro";
 import {
+  orderedTaxonomyValues,
   publishedEntries,
   sortEntries,
   taxonomyLabel,
   toParam,
-  uniqueNonEmpty,
-  uniqueValues
+  uniqueNonEmpty
 } from "../../../../lib/content";
 
 const allEntries = sortEntries(publishedEntries(await getCollection("writing")));
-const types = uniqueValues(allEntries.map((entry) => entry.data.type));
+const types = orderedTaxonomyValues(allEntries.map((entry) => entry.data.type), "writingTypes");
 
 export async function getStaticPaths() {
   const entries = sortEntries(publishedEntries(await getCollection("writing")));
@@ -86,7 +86,6 @@ const subtypes = uniqueNonEmpty(
           description={entry.data.description}
           date={entry.data.date}
           meta={[taxonomyLabel(entry.data.type, entry.data.subtype)]}
-          badge={entry.data.format === "pdf" ? "PDF" : undefined}
           tags={entry.data.tags}
         />
       ))}

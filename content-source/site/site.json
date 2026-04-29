@@ -14,6 +14,23 @@
     "path": "/library/site/home/finch.jpg",
     "alt": "What Remains of Edith Finch"
   },
+  "homeNews": [
+    "2026 4.28 8:59 p.m. 完成了McCall《历史问题空间框架》与社会模拟游戏设计笔记（1）。",
+    "2026 4.29 3:07 p.m. 完成了McCall《历史问题空间框架》与社会模拟游戏设计笔记（2），是非常有趣的idea，但是要怎么落地是一个比较大的问题。"
+  ],
+  "taxonomyOrder": {
+    "notesTopics": [
+      "叙事理论",
+      "游戏分析",
+      "游戏设计"
+    ],
+    "writingTypes": [
+      "书评"
+    ],
+    "projectCategories": [
+      "游戏化"
+    ]
+  },
   "about": {
     "name": "糖水菠萝",
     "intro": "是一个小小的密涅瓦的巡林官",
@@ -32,7 +49,7 @@
   },
   "workflow": {
     "buildCommand": "npm run build",
-    "publishCommand": "echo \"publish test ok\"",
-    "publishNote": "本地测试，不执行真实部署"
+    "publishCommand": "npx @azure/static-web-apps-cli deploy ./dist --env production --deployment-token 7a52d9beab6a12c6092992e0ac890deb78c87f6a0a4707e6d841823f6402626c07-b6ba54d6-58c7-4ff9-b196-a3e106fb87e300003040de665000",
+    "publishNote": "Publish 会先执行 Build，再部署到 Azure Static Web Apps。"
   }
 }

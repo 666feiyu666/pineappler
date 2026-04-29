@@ -1,6 +1,7 @@
 ---
 import { getCollection } from "astro:content";
 import Layout from "../../components/Layout.astro";
+import TagList from "../../components/TagList.astro";
 import { formatDate, publishedEntries, taxonomyLabel } from "../../lib/content";
 
 export async function getStaticPaths() {
@@ -17,31 +18,15 @@ const { Content } = await entry.render();
 
 <Layout title={`${entry.data.title} | Writing`} description={entry.data.description}>
   <article class="content-block">
-    <p class="entry-date">
-      {[taxonomyLabel(entry.data.type, entry.data.subtype), entry.data.publication].filter(Boolean).join(" · ")}
-    </p>
+    <p class="entry-date">{taxonomyLabel(entry.data.type, entry.data.subtype)}</p>
     <h1 class="page-title">{entry.data.title}</h1>
     <p class="page-summary">{entry.data.description}</p>
     <div class="detail-actions">
       <span class="entry-date">{formatDate(entry.data.date)}</span>
-      {entry.data.format === "pdf" && entry.data.filePath && (
-        <a class="action-link" href={entry.data.filePath} target="_blank" rel="noreferrer">
-          Open PDF
-        </a>
-      )}
     </div>
-    {entry.data.tags.length > 0 && (
-      <ul class="tag-list">
-        {entry.data.tags.map((tag: string) => <li>{tag}</li>)}
-      </ul>
-    )}
+    <TagList tags={entry.data.tags} />
     <div class="prose-block">
       <Content />
     </div>
-    {entry.data.format === "pdf" && entry.data.filePath && (
-      <div class="pdf-preview">
-        <iframe src={entry.data.filePath} title={`${entry.data.title} PDF preview`}></iframe>
-      </div>
-    )}
   </article>
 </Layout>

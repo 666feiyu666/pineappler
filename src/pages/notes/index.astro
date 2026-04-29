@@ -5,15 +5,15 @@ import FilterStrip from "../../components/FilterStrip.astro";
 import Layout from "../../components/Layout.astro";
 import PageIntro from "../../components/PageIntro.astro";
 import {
+  orderedTaxonomyValues,
   publishedEntries,
   sortEntries,
   taxonomyLabel,
-  toParam,
-  uniqueValues
+  toParam
 } from "../../lib/content";
 
 const notes = sortEntries(publishedEntries(await getCollection("notes")));
-const topics = uniqueValues(notes.map((entry) => entry.data.topic));
+const topics = orderedTaxonomyValues(notes.map((entry) => entry.data.topic), "notesTopics");
 ---
 
 <Layout title="Pineappler | Notes" description="按最新时间排列的笔记列表。">

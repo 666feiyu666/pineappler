@@ -1,4 +1,5 @@
 import type { CollectionEntry } from "astro:content";
+import { taxonomyOrder } from "../data/site";
 
 type SiteEntry = CollectionEntry<"notes" | "writing" | "projects">;
 
@@ -44,6 +45,30 @@ export function uniqueValues(values: string[]) {
   );
 }
 
+export function orderValues(values: string[], preferredOrder: string[] = []) {
+  const normalized = [...new Set(values.filter(Boolean))];
+  const remaining = new Set(normalized);
+  const ordered = [];
+
+  for (const item of preferredOrder) {
+    if (!remaining.has(item)) continue;
+    ordered.push(item);
+    remaining.delete(item);
+  }
+
+  return [
+    ...ordered,
+    ...[...remaining].sort((left, right) => left.localeCompare(right, "zh-CN"))
+  ];
+}
+
+export function orderedTaxonomyValues(
+  values: string[],
+  key: "notesTopics" | "writingTypes" | "projectCategories"
+) {
+  return orderValues(values, taxonomyOrder?.[key] || []);
+}
+
 export function taxonomyLabel(primary: string, secondary?: string) {
   return secondary ? `${primary} / ${secondary}` : primary;
 }
@@ -72,4 +97,42 @@ export function groupByLabel<T>(items: T[], getLabel: (item: T) => string) {
   return [...groups.entries()]
     .sort(([left], [right]) => left.localeCompare(right, "zh-CN"))
     .map(([label, entries]) => ({ label, entries }));
+}
+
+export function toPlainText(markdown: string) {
+  return String(markdown || "")
+    .replace(/```[\s\S]*?```/g, " ")
+    .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, " $1 ")
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, "$1")
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/^>\s?/gm, "")
+    .replace(/^\s*[-*+]\s+/gm, "")
+    .replace(/^\s*\d+\.\s+/gm, "")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/[*_~]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export function excerptText(value: string, maxLength = 180) {
+  const normalized = toPlainText(value);
+  if (normalized.length <= maxLength) {
+    return normalized;
+  }
+  return `${normalized.slice(0, maxLength).trimEnd()}…`;
+}
+
+export function formatExternalLinkLabel(url?: string) {
+  if (!url) {
+    return "";
+  }
+
+  try {
+    const parsed = new URL(url);
+    const pathname = parsed.pathname === "/" ? "" : parsed.pathname.replace(/\/$/, "");
+    const compactPath = pathname.length > 18 ? `${pathname.slice(0, 18)}…` : pathname;
+    return `${parsed.hostname}${compactPath}`;
+  } catch {
+    return url.replace(/^https?:\/\//i, "").replace(/\/$/, "");
+  }
 }

@@ -51,6 +51,7 @@ const studioEnabled = import.meta.env.DEV;
                 <label><span>Location</span><input name="location" required /></label>
                 <label><span>Home quote</span><textarea name="homeQuote" rows="4"></textarea></label>
                 <label><span>Quote source</span><input name="homeQuoteSource" /></label>
+                <label><span>Home news</span><textarea name="homeNews" rows="6" placeholder="每行一条更新，例如：2026-04-28 更新了叙事理论笔记"></textarea></label>
                 <input type="hidden" name="existingImagePath" />
                 <label><span>Image alt</span><input name="homeImageAlt" placeholder="首页图片说明" /></label>
                 <label><span>Upload / Replace image</span><input name="homeImageFile" type="file" accept=".jpg,.jpeg,.png,.webp,.gif,image/jpeg,image/png,image/webp,image/gif" /></label>
@@ -147,7 +148,18 @@ const studioEnabled = import.meta.env.DEV;
                 <label><span>Topic</span><input name="topic" list="note-topic-list" required /></label>
                 <label><span>Sub-topic</span><input name="subtopic" placeholder="例如：生命叙事" /></label>
                 <label><span>Description</span><textarea name="description" rows="3"></textarea></label>
-                <label><span>Tags</span><input name="tags" placeholder="标签1, 标签2" /></label>
+                <label class="studio-tag-field">
+                  <span>Tags</span>
+                  <div class="studio-tag-input" data-tag-input="note">
+                    <div class="studio-tag-chip-list" data-tag-chips="note"></div>
+                    <input type="hidden" name="tags" />
+                    <input
+                      type="text"
+                      placeholder="输入标签后按回车、逗号或分号"
+                      data-tag-draft="note"
+                    />
+                  </div>
+                </label>
                 <label><span>Date</span><input name="date" type="date" /></label>
                 <label><span>Upload date</span><input name="uploadDate" type="date" /></label>
                 <label><span>Supporting images</span><input name="images" type="file" accept=".jpg,.jpeg,.png,.webp,.gif,image/jpeg,image/png,image/webp,image/gif" multiple /></label>
@@ -160,7 +172,7 @@ const studioEnabled = import.meta.env.DEV;
             <div class="page-intro">
               <p class="eyebrow">Studio / Writing</p>
               <h1>Writing</h1>
-              <p class="page-intro-copy">管理类型、sub-type、Markdown / PDF 条目，以及已有 writing。</p>
+              <p class="page-intro-copy">管理类型、sub-type、Markdown 条目，以及已有 writing。</p>
             </div>
 
             <div class="studio-grid studio-grid-wide">
@@ -215,25 +227,27 @@ const studioEnabled = import.meta.env.DEV;
                 </div>
               </div>
               <input type="hidden" name="pathKey" />
-              <input type="hidden" name="existingFilePath" />
               <div class="studio-fields">
-                <label><span>Format</span>
-                  <select name="format">
-                    <option value="markdown">Markdown</option>
-                    <option value="pdf">PDF</option>
-                  </select>
-                </label>
                 <label><span>Title</span><input name="title" required /></label>
                 <label><span>Type</span><input name="type" list="writing-type-list" required /></label>
                 <label><span>Sub-type</span><input name="subtype" placeholder="例如：生命叙事" /></label>
                 <label><span>Description</span><textarea name="description" rows="3"></textarea></label>
-                <label><span>Tags</span><input name="tags" placeholder="标签1, 标签2" /></label>
+                <label class="studio-tag-field">
+                  <span>Tags</span>
+                  <div class="studio-tag-input" data-tag-input="writing">
+                    <div class="studio-tag-chip-list" data-tag-chips="writing"></div>
+                    <input type="hidden" name="tags" />
+                    <input
+                      type="text"
+                      placeholder="输入标签后按回车、逗号或分号"
+                      data-tag-draft="writing"
+                    />
+                  </div>
+                </label>
                 <label><span>Date</span><input name="date" type="date" /></label>
-                <label class="studio-pdf-field"><span>Publication</span><input name="publication" placeholder="Conference / Thesis / Journal" /></label>
-                <label class="studio-pdf-field"><span>PDF file</span><input name="file" type="file" accept="application/pdf" /></label>
                 <div class="studio-markdown-field" data-markdown-editor="writing">
                   <div class="studio-markdown-head">
-                    <span>Body / Abstract</span>
+                    <span>Body</span>
                     <div class="studio-markdown-toolbar">
                       <button type="button" class="studio-toolbar-button" data-editor-command="heading">H2</button>
                       <button type="button" class="studio-toolbar-button" data-editor-command="bold">Bold</button>
@@ -262,13 +276,23 @@ const studioEnabled = import.meta.env.DEV;
               <p class="page-intro-copy">管理 project 的 category / subcategory，并编辑项目页面内容。</p>
             </div>
 
-            <section class="studio-panel">
-              <div class="studio-panel-head">
-                <h2>Existing projects</h2>
-                <button type="button" class="studio-button" data-action="new-project">新建项目</button>
-              </div>
-              <div class="studio-entry-list" data-list="projects"></div>
-            </section>
+            <div class="studio-grid studio-grid-wide">
+              <section class="studio-panel">
+                <div class="studio-panel-head">
+                  <h2>Categories</h2>
+                </div>
+                <p class="studio-hint">项目分类会来自已有 project。可在这里调整前台展示顺序。</p>
+                <div class="studio-chip-list" data-list="project-categories"></div>
+              </section>
+
+              <section class="studio-panel">
+                <div class="studio-panel-head">
+                  <h2>Existing projects</h2>
+                  <button type="button" class="studio-button" data-action="new-project">新建项目</button>
+                </div>
+                <div class="studio-entry-list" data-list="projects"></div>
+              </section>
+            </div>
 
             <form class="studio-panel" data-form="project-editor">
               <div class="studio-panel-head">
@@ -280,6 +304,7 @@ const studioEnabled = import.meta.env.DEV;
                 </div>
               </div>
               <input type="hidden" name="pathKey" />
+              <input type="hidden" name="slug" />
               <input type="hidden" name="existingImagePath" />
               <div class="studio-fields">
                 <label><span>Title</span><input name="title" required /></label>
@@ -288,7 +313,18 @@ const studioEnabled = import.meta.env.DEV;
                 <label><span>Description</span><textarea name="description" rows="3"></textarea></label>
                 <label><span>Status</span><input name="status" placeholder="In progress / Planned / Published" /></label>
                 <label><span>Link</span><input name="link" placeholder="https://example.com" /></label>
-                <label><span>Tags</span><input name="tags" placeholder="workflow, archive" /></label>
+                <label class="studio-tag-field">
+                  <span>Tags</span>
+                  <div class="studio-tag-input" data-tag-input="project">
+                    <div class="studio-tag-chip-list" data-tag-chips="project"></div>
+                    <input type="hidden" name="tags" />
+                    <input
+                      type="text"
+                      placeholder="输入标签后按回车、逗号或分号"
+                      data-tag-draft="project"
+                    />
+                  </div>
+                </label>
                 <label><span>Date</span><input name="date" type="date" /></label>
                 <label><span>Image alt</span><input name="imageAlt" placeholder="项目封面说明" /></label>
                 <label><span>Upload / Replace image</span><input name="imageFile" type="file" accept=".jpg,.jpeg,.png,.webp,.gif,image/jpeg,image/png,image/webp,image/gif" /></label>
@@ -331,7 +367,7 @@ const studioEnabled = import.meta.env.DEV;
               </div>
               <div class="studio-fields">
                 <label><span>Build command</span><input name="buildCommand" required /></label>
-                <label><span>Publish command</span><input name="publishCommand" placeholder="例如：wrangler pages deploy dist" /></label>
+                <label><span>Publish command</span><input name="publishCommand" placeholder="npx @azure/static-web-apps-cli deploy ./dist --env production --deployment-token ..." /></label>
                 <label><span>Publish note</span><textarea name="publishNote" rows="4"></textarea></label>
               </div>
             </form>

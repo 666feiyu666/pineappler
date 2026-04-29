@@ -5,6 +5,7 @@ const commonSchema = z.object({
   description: z.string().min(1),
   date: z.coerce.date(),
   tags: z.array(z.string()).default([]),
+  slug: z.string().optional(),
   draft: z.boolean().default(false)
 });
 
@@ -23,9 +24,6 @@ const writing = defineCollection({
   schema: commonSchema.extend({
     type: z.string(),
     subtype: z.string().default(""),
-    format: z.enum(["markdown", "pdf"]).default("markdown"),
-    filePath: z.string().optional(),
-    publication: z.string().optional(),
     sourcePath: z.string().optional()
   })
 });

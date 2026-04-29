@@ -1,7 +1,13 @@
 ---
 import { getCollection } from "astro:content";
 import Layout from "../../components/Layout.astro";
-import { formatDate, publishedEntries, taxonomyLabel } from "../../lib/content";
+import TagList from "../../components/TagList.astro";
+import {
+  formatDate,
+  formatExternalLinkLabel,
+  publishedEntries,
+  taxonomyLabel
+} from "../../lib/content";
 
 export async function getStaticPaths() {
   const entries = publishedEntries(await getCollection("projects"));
@@ -37,15 +43,13 @@ const { Content } = await entry.render();
       {entry.data.link && (
         <div>
           <span>Link</span>
-          <a href={entry.data.link}>Project page</a>
+          <a class="content-link" href={entry.data.link} target="_blank" rel="noreferrer">
+            {formatExternalLinkLabel(entry.data.link)}
+          </a>
         </div>
       )}
     </div>
-    {entry.data.tags.length > 0 && (
-      <ul class="tag-list">
-        {entry.data.tags.map((tag: string) => <li>{tag}</li>)}
-      </ul>
-    )}
+    <TagList tags={entry.data.tags} />
     <div class="prose-block">
       <Content />
     </div>

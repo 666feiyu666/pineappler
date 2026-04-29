@@ -1,4 +1,4 @@
-import { copyFile, mkdir, readFile, stat, writeFile } from "node:fs/promises";
+import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import {
   ensureArray,
@@ -13,7 +13,6 @@ import {
 
 const rootDir = process.cwd();
 const writingRoot = path.join(rootDir, "content-source", "writing");
-const assetRoot = path.join(rootDir, "public", "library", "writing");
 
 function readArgs() {
   const args = process.argv.slice(2);
@@ -60,8 +59,6 @@ async function importMarkdown(sourceFile, options) {
     subtype,
     tags,
     draft,
-    format: "markdown",
-    publication: options.publication,
     sourcePath: path.relative(rootDir, sourceFile)
   });
 
@@ -69,54 +66,10 @@ async function importMarkdown(sourceFile, options) {
   console.log(`Imported writing -> ${path.relative(rootDir, path.join(typeDir, fileName))}`);
 }
 
-async function importPdf(sourceFile, options) {
-  const sourceInfo = await stat(sourceFile);
-  const title = options.title || path.basename(sourceFile, path.extname(sourceFile));
-  const description = options.description || "PDF entry placeholder.";
-  const date = options.date || formatDate(sourceInfo.mtime);
-  const tags = ensureArray(options.tags);
-  const draft = options.draft === "true";
-  const type = options.type;
-  const subtype = options.subtype || "";
-  const typeParam = toParam(type);
-  const subtypeParam = subtype ? toParam(subtype) : "";
-  const slug = slugifyFilename(options.slug || title, sourceFile);
-  const assetDir = path.join(assetRoot, typeParam, ...(subtypeParam ? [subtypeParam] : []));
-  const sourceExt = path.extname(sourceFile).toLowerCase();
-  const assetPath = path.join(assetDir, `${slug}${sourceExt}`);
-  const entryDir = path.join(writingRoot, typeParam, ...(subtypeParam ? [subtypeParam] : []));
-  const entryPath = path.join(entryDir, `${slug}.md`);
-
-  await mkdir(assetDir, { recursive: true });
-  await mkdir(entryDir, { recursive: true });
-  await copyFile(sourceFile, assetPath);
-
-  const frontmatter = serializeFrontmatter({
-    title,
-    description,
-    date,
-    type,
-    subtype,
-    tags,
-    draft,
-    format: "pdf",
-    filePath: path.posix.join("/library/writing", typeParam, ...(subtypeParam ? [subtypeParam] : []), `${slug}${sourceExt}`),
-    publication: options.publication,
-    sourcePath: path.relative(rootDir, sourceFile)
-  });
-
-  const body = options.abstract
-    ? options.abstract
-    : "这是一条 PDF 类型的 writing 条目。后续可以在这里补充摘要、会议信息或阅读说明。";
-
-  await writeFile(entryPath, `${frontmatter}${body}\n`);
-  console.log(`Imported PDF writing -> ${path.relative(rootDir, entryPath)}`);
-}
-
 async function main() {
   const options = readArgs();
   if (!options.source || !options.type) {
-    throw new Error("Usage: npm run import:writing -- --source <file.md|file.pdf> --type <type> [--subtype <subtype>]");
+    throw new Error("Usage: npm run import:writing -- --source <file.md> --type <type> [--subtype <subtype>]");
   }
 
   const sourceFile = path.resolve(rootDir, options.source);
@@ -127,12 +80,7 @@ async function main() {
     return;
   }
 
-  if (ext === ".pdf") {
-    await importPdf(sourceFile, options);
-    return;
-  }
-
-  throw new Error("Only .md and .pdf sources are supported.");
+  throw new Error("Only .md sources are supported.");
 }
 
 main().catch((error) => {

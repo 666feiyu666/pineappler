@@ -174,13 +174,16 @@ export function getFolderLabel(filePath, baseDir) {
 
 export function ensureArray(value) {
   if (Array.isArray(value)) {
-    return value;
+    return value
+      .flatMap((item) => String(item).split(/[,，;；\n]+/))
+      .map((item) => item.trim())
+      .filter(Boolean);
   }
   if (!value) {
     return [];
   }
   return String(value)
-    .split(",")
+    .split(/[,，;；\n]+/)
     .map((item) => item.trim())
     .filter(Boolean);
 }

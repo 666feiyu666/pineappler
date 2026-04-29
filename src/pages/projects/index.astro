@@ -5,15 +5,16 @@ import FilterStrip from "../../components/FilterStrip.astro";
 import Layout from "../../components/Layout.astro";
 import PageIntro from "../../components/PageIntro.astro";
 import {
+  formatExternalLinkLabel,
+  orderedTaxonomyValues,
   publishedEntries,
   sortEntries,
   taxonomyLabel,
-  toParam,
-  uniqueValues
+  toParam
 } from "../../lib/content";
 
 const entries = sortEntries(publishedEntries(await getCollection("projects")));
-const categories = uniqueValues(entries.map((entry) => entry.data.category));
+const categories = orderedTaxonomyValues(entries.map((entry) => entry.data.category), "projectCategories");
 ---
 
 <Layout title="Pineappler | Projects" description="按最新时间排列的项目列表。">
@@ -38,6 +39,8 @@ const categories = uniqueValues(entries.map((entry) => entry.data.category));
           date={entry.data.date}
           meta={[taxonomyLabel(entry.data.category, entry.data.subcategory), entry.data.status]}
           tags={entry.data.tags}
+          externalLink={entry.data.link}
+          externalLinkLabel={formatExternalLinkLabel(entry.data.link)}
           imagePath={entry.data.imagePath}
           imageAlt={entry.data.imageAlt}
         />

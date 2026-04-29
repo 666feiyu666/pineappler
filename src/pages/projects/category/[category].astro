@@ -5,20 +5,21 @@ import FilterStrip from "../../../components/FilterStrip.astro";
 import Layout from "../../../components/Layout.astro";
 import PageIntro from "../../../components/PageIntro.astro";
 import {
+  formatExternalLinkLabel,
+  orderedTaxonomyValues,
   publishedEntries,
   sortEntries,
   taxonomyLabel,
   toParam,
-  uniqueNonEmpty,
-  uniqueValues
+  uniqueNonEmpty
 } from "../../../lib/content";
 
 const allEntries = sortEntries(publishedEntries(await getCollection("projects")));
-const categories = uniqueValues(allEntries.map((entry) => entry.data.category));
+const categories = orderedTaxonomyValues(allEntries.map((entry) => entry.data.category), "projectCategories");
 
 export async function getStaticPaths() {
   const entries = sortEntries(publishedEntries(await getCollection("projects")));
-  const categories = uniqueValues(entries.map((entry) => entry.data.category));
+  const categories = orderedTaxonomyValues(entries.map((entry) => entry.data.category), "projectCategories");
   return categories.map((category) => ({
     params: { category: toParam(category) },
     props: {
@@ -70,6 +71,8 @@ const subcategories = uniqueNonEmpty(entries.map((entry) => entry.data.subcatego
           date={entry.data.date}
           meta={[taxonomyLabel(entry.data.category, entry.data.subcategory), entry.data.status]}
           tags={entry.data.tags}
+          externalLink={entry.data.link}
+          externalLinkLabel={formatExternalLinkLabel(entry.data.link)}
           imagePath={entry.data.imagePath}
           imageAlt={entry.data.imageAlt}
         />

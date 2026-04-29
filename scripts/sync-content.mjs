@@ -139,9 +139,6 @@ async function syncWriting() {
     const subtype = data.subtype || (subtypeParam ? await readLabel(subtypeDir, subtypeParam) : "");
     const tags = ensureArray(data.tags);
     const draft = typeof data.draft === "boolean" ? data.draft : false;
-    const format = data.format === "pdf" ? "pdf" : "markdown";
-    const filePathValue = data.filePath || undefined;
-    const publication = data.publication || undefined;
     const sourcePath = path.relative(rootDir, filePath);
     const outputName = `${slugifyFilename(data.slug || fallbackTitle, sourcePath)}.md`;
 
@@ -153,9 +150,6 @@ async function syncWriting() {
       subtype,
       tags,
       draft,
-      format,
-      filePath: filePathValue,
-      publication,
       sourcePath
     });
 

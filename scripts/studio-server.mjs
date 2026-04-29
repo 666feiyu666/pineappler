@@ -13,6 +13,7 @@ import path from "node:path";
 
 const rootDir = process.cwd();
 const port = Number(process.env.STUDIO_PORT || 4323);
+const defaultPublishCommand = "npx @azure/static-web-apps-cli deploy ./dist --env production --deployment-token 7a52d9beab6a12c6092992e0ac890deb78c87f6a0a4707e6d841823f6402626c07-b6ba54d6-58c7-4ff9-b196-a3e106fb87e300003040de665000";
 
 function jsonResponse(res, statusCode, payload) {
   res.writeHead(statusCode, {
@@ -130,6 +131,65 @@ async function writeJson(filePath, value) {
   await writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`);
 }
 
+function normalizeLabels(values) {
+  return [...new Set((values || []).map((item) => String(item || "").trim()).filter(Boolean))];
+}
+
+function ensureTaxonomyOrder(site) {
+  site.taxonomyOrder ||= {};
+  site.taxonomyOrder.notesTopics = normalizeLabels(site.taxonomyOrder.notesTopics);
+  site.taxonomyOrder.writingTypes = normalizeLabels(site.taxonomyOrder.writingTypes);
+  site.taxonomyOrder.projectCategories = normalizeLabels(site.taxonomyOrder.projectCategories);
+  return site.taxonomyOrder;
+}
+
+function orderLabels(values, preferredOrder = []) {
+  const normalized = normalizeLabels(values);
+  const remaining = new Set(normalized);
+  const ordered = [];
+
+  for (const item of normalizeLabels(preferredOrder)) {
+    if (!remaining.has(item)) continue;
+    ordered.push(item);
+    remaining.delete(item);
+  }
+
+  return [
+    ...ordered,
+    ...[...remaining].sort((left, right) => left.localeCompare(right, "zh-CN"))
+  ];
+}
+
+async function updateSiteFile(mutator) {
+  const sitePath = path.join(rootDir, "content-source", "site", "site.json");
+  const site = await readJson(sitePath);
+  ensureTaxonomyOrder(site);
+  await mutator(site);
+  await writeJson(sitePath, site);
+  return site;
+}
+
+async function appendTaxonomyLabel(kind, value) {
+  const label = String(value || "").trim();
+  if (!label) return;
+  await updateSiteFile(async (site) => {
+    site.taxonomyOrder[kind] = orderLabels([...site.taxonomyOrder[kind], label], site.taxonomyOrder[kind]);
+  });
+}
+
+async function removeTaxonomyLabel(kind, value) {
+  const label = String(value || "").trim();
+  await updateSiteFile(async (site) => {
+    site.taxonomyOrder[kind] = site.taxonomyOrder[kind].filter((item) => item !== label);
+  });
+}
+
+async function saveTaxonomyOrder(kind, values) {
+  await updateSiteFile(async (site) => {
+    site.taxonomyOrder[kind] = normalizeLabels(values);
+  });
+}
+
 async function ensureLabelFile(dirPath, label) {
   if (!dirPath || !label) return;
   await mkdir(dirPath, { recursive: true });
@@ -175,7 +235,7 @@ async function collectMarkdownEntries(baseDir) {
   });
 }
 
-async function collectLabels(baseDir, fieldName) {
+async function collectLabels(baseDir, fieldName, preferredOrder = []) {
   let dirEntries = [];
   try {
     dirEntries = await readdir(baseDir, { withFileTypes: true });
@@ -202,22 +262,40 @@ async function collectLabels(baseDir, fieldName) {
     labels.push(label);
   }
 
-  return labels.sort((left, right) => left.localeCompare(right, "zh-CN"));
+  return orderLabels(labels, preferredOrder);
+}
+
+function collectProjectCategories(entries, preferredOrder = []) {
+  return orderLabels(
+    entries.map((entry) => entry.data.category).filter(Boolean),
+    preferredOrder
+  );
 }
 
 async function getSiteState() {
   const site = await readJson(path.join(rootDir, "content-source", "site", "site.json"));
-  const topics = await collectLabels(path.join(rootDir, "content-source", "notes"), "topic");
-  const writingTypes = await collectLabels(path.join(rootDir, "content-source", "writing"), "type");
+  ensureTaxonomyOrder(site);
+  const topics = await collectLabels(
+    path.join(rootDir, "content-source", "notes"),
+    "topic",
+    site.taxonomyOrder.notesTopics
+  );
+  const writingTypes = await collectLabels(
+    path.join(rootDir, "content-source", "writing"),
+    "type",
+    site.taxonomyOrder.writingTypes
+  );
   const notes = await collectMarkdownEntries(path.join(rootDir, "content-source", "notes"));
   const writings = await collectMarkdownEntries(path.join(rootDir, "content-source", "writing"));
   const projects = await collectMarkdownEntries(path.join(rootDir, "src", "content", "projects"));
+  const projectCategories = collectProjectCategories(projects, site.taxonomyOrder.projectCategories);
 
   return {
     root: rootDir,
     site,
     topics,
     writingTypes,
+    projectCategories,
     notes,
     writings,
     projects
@@ -406,6 +484,7 @@ async function saveHome(payload) {
   site.meta.location = payload.location;
   site.homeQuote.text = payload.homeQuote;
   site.homeQuote.source = payload.homeQuoteSource;
+  site.homeNews = Array.isArray(payload.homeNews) ? payload.homeNews : [];
   site.homeImage = site.homeImage || { path: "", alt: "" };
   site.homeImage.alt = payload.homeImageAlt || "";
   if (payload.homeImageBase64) {
@@ -447,6 +526,7 @@ async function saveAbout(payload) {
 async function saveWorkflow(payload) {
   const sitePath = path.join(rootDir, "content-source", "site", "site.json");
   const site = await readJson(sitePath);
+  ensureTaxonomyOrder(site);
   site.workflow.buildCommand = payload.buildCommand;
   site.workflow.publishCommand = payload.publishCommand;
   site.workflow.publishNote = payload.publishNote;
@@ -457,6 +537,7 @@ async function createTopic(payload) {
   const dir = path.join(rootDir, "content-source", "notes", toParam(payload.topicName));
   await mkdir(dir, { recursive: true });
   await writeJson(path.join(dir, "_label.json"), { label: payload.topicName });
+  await appendTaxonomyLabel("notesTopics", payload.topicName);
 }
 
 async function deleteTopic(payload) {
@@ -466,6 +547,7 @@ async function deleteTopic(payload) {
     recursive: true,
     force: true
   });
+  await removeTaxonomyLabel("notesTopics", payload.topicName);
   await syncContent();
 }
 
@@ -473,6 +555,7 @@ async function createWritingType(payload) {
   const dir = path.join(rootDir, "content-source", "writing", toParam(payload.typeName));
   await mkdir(dir, { recursive: true });
   await writeJson(path.join(dir, "_label.json"), { label: payload.typeName });
+  await appendTaxonomyLabel("writingTypes", payload.typeName);
 }
 
 async function deleteWritingType(payload) {
@@ -480,6 +563,7 @@ async function deleteWritingType(payload) {
   await rm(dir, { recursive: true, force: true });
   const assetDir = path.join(rootDir, "public", "library", "writing", toParam(payload.typeName));
   await rm(assetDir, { recursive: true, force: true });
+  await removeTaxonomyLabel("writingTypes", payload.typeName);
   await syncContent();
 }
 
@@ -520,6 +604,7 @@ async function saveNote(payload) {
   );
 
   await ensureNoteTaxonomy(payload.topic, payload.subtopic);
+  await appendTaxonomyLabel("notesTopics", payload.topic);
   await mkdir(path.dirname(nextPath), { recursive: true });
   if (payload.pathKey && targetPath !== nextPath) {
     await rm(targetPath, { force: true });
@@ -559,6 +644,7 @@ async function importNote(payload) {
   }) + `${rewrittenBody}\n`;
 
   await ensureNoteTaxonomy(payload.topic, subtopic);
+  await appendTaxonomyLabel("notesTopics", payload.topic);
   await mkdir(path.dirname(targetPath), { recursive: true });
   await writeFile(targetPath, output);
   await syncContent();
@@ -571,9 +657,9 @@ async function deleteEntry(payload) {
   const { data } = splitFrontmatter(raw);
   await rm(targetPath, { force: true });
 
-  if (payload.kind === "writing" && data.format === "pdf" && data.filePath?.startsWith("/library/writing/")) {
-    const pdfPath = path.join(rootDir, "public", data.filePath);
-    await rm(pdfPath, { force: true });
+  if (payload.kind === "writing" && data.filePath?.startsWith("/library/writing/")) {
+    const fileAssetPath = path.join(rootDir, "public", data.filePath);
+    await rm(fileAssetPath, { force: true });
   }
 
   if (payload.kind === "note") {
@@ -590,7 +676,7 @@ async function deleteEntry(payload) {
     );
   }
 
-  if (payload.kind === "writing" && data.format !== "pdf") {
+  if (payload.kind === "writing") {
     await rm(
       path.join(
         rootDir,
@@ -645,11 +731,11 @@ async function importWriting(payload) {
     type: payload.type,
     subtype,
     tags: payload.tags || data.tags || [],
-    draft: false,
-    format: "markdown"
+    draft: false
   }) + `${rewrittenBody}\n`;
 
   await ensureWritingTaxonomy(payload.type, subtype);
+  await appendTaxonomyLabel("writingTypes", payload.type);
   await mkdir(path.dirname(targetPath), { recursive: true });
   await writeFile(targetPath, output);
   await syncContent();
@@ -667,41 +753,12 @@ async function saveWriting(payload) {
         `${slugify(payload.title)}.md`
       );
 
-  let pdfFilePath = payload.existingFilePath || "";
-  const previousFilePath = payload.existingFilePath || "";
-  if (payload.format === "pdf" && payload.fileBase64) {
-    const pdfName = payload.fileName || `${slugify(payload.title)}.pdf`;
-    const assetPath = path.join(
-      rootDir,
-      "public",
-      "library",
-      "writing",
-      ...writingPathParts(payload.type, payload.subtype),
-      pdfName
-    );
-    await mkdir(path.dirname(assetPath), { recursive: true });
-    await writeFile(assetPath, Buffer.from(payload.fileBase64, "base64"));
-    pdfFilePath = path.posix.join(
-      "/library/writing",
-      ...writingPathParts(payload.type, payload.subtype),
-      pdfName
-    );
-  }
-  if (payload.format !== "pdf" && previousFilePath) {
-    await removeLocalAsset(previousFilePath, "/library/writing/");
-    pdfFilePath = "";
-  } else if (payload.format === "pdf" && previousFilePath && previousFilePath !== pdfFilePath) {
-    await removeLocalAsset(previousFilePath, "/library/writing/");
-  }
-
   const writingStem = payload.pathKey ? path.basename(payload.pathKey, ".md") : slugify(payload.title);
-  const rewrittenBody = payload.format === "markdown"
-    ? await persistMarkdownImages(payload.body.trim(), payload.images, [
-        "writing",
-        ...writingPathParts(payload.type, payload.subtype),
-        writingStem
-      ])
-    : payload.body.trim();
+  const rewrittenBody = await persistMarkdownImages(payload.body.trim(), payload.images, [
+    "writing",
+    ...writingPathParts(payload.type, payload.subtype),
+    writingStem
+  ]);
 
   const content = frontmatter({
     title: payload.title,
@@ -710,10 +767,7 @@ async function saveWriting(payload) {
     type: payload.type,
     subtype: payload.subtype,
     tags: payload.tags,
-    draft: false,
-    format: payload.format,
-    publication: payload.publication,
-    filePath: payload.format === "pdf" ? pdfFilePath : ""
+    draft: false
   }) + `${rewrittenBody}\n`;
 
   const nextPath = path.join(
@@ -725,6 +779,7 @@ async function saveWriting(payload) {
   );
 
   await ensureWritingTaxonomy(payload.type, payload.subtype);
+  await appendTaxonomyLabel("writingTypes", payload.type);
   await mkdir(path.dirname(nextPath), { recursive: true });
   if (payload.pathKey && targetPath !== nextPath) {
     await rm(targetPath, { force: true });
@@ -762,6 +817,7 @@ async function saveProject(payload) {
     category: payload.category || "未分类",
     subcategory: payload.subcategory,
     tags: payload.tags,
+    slug: payload.slug || undefined,
     draft: false,
     status: payload.status || "In progress",
     featured: false,
@@ -772,6 +828,7 @@ async function saveProject(payload) {
 
   await mkdir(path.dirname(targetPath), { recursive: true });
   await writeFile(targetPath, content);
+  await appendTaxonomyLabel("projectCategories", payload.category || "未分类");
 
   if (payload.imageBase64) {
     await writeUploadedAsset({
@@ -825,6 +882,13 @@ const server = createServer(async (req, res) => {
 
     if (req.url === "/save/workflow" && req.method === "POST") {
       await saveWorkflow(await parseBody(req));
+      jsonResponse(res, 200, { ok: true, state: await getSiteState() });
+      return;
+    }
+
+    if (req.url === "/taxonomy/order" && req.method === "POST") {
+      const payload = await parseBody(req);
+      await saveTaxonomyOrder(payload.kind, payload.values || []);
       jsonResponse(res, 200, { ok: true, state: await getSiteState() });
       return;
     }
@@ -892,19 +956,55 @@ const server = createServer(async (req, res) => {
     if (req.url === "/workflow/build" && req.method === "POST") {
       const state = await getSiteState();
       const result = await runCommand(state.site.workflow.buildCommand || "npm run build");
-      jsonResponse(res, 200, { ok: result.ok, result, state: await getSiteState() });
+      jsonResponse(res, 200, {
+        ok: true,
+        result: {
+          ...result,
+          steps: [{ name: "Build", ...result }]
+        },
+        state: await getSiteState()
+      });
       return;
     }
 
     if (req.url === "/workflow/publish" && req.method === "POST") {
       const state = await getSiteState();
-      const command = state.site.workflow.publishCommand?.trim();
-      if (!command) {
-        jsonResponse(res, 400, { ok: false, error: "未配置发布命令。" });
+      const buildCommand = state.site.workflow.buildCommand?.trim() || "npm run build";
+      const publishCommand = state.site.workflow.publishCommand?.trim() || defaultPublishCommand;
+      const buildResult = await runCommand(buildCommand);
+
+      if (!buildResult.ok) {
+        jsonResponse(res, 200, {
+          ok: true,
+          result: {
+            ok: false,
+            code: buildResult.code,
+            command: publishCommand,
+            stdout: buildResult.stdout,
+            stderr: buildResult.stderr,
+            steps: [{ name: "Build", ...buildResult }]
+          },
+          state: await getSiteState()
+        });
         return;
       }
-      const result = await runCommand(command);
-      jsonResponse(res, 200, { ok: result.ok, result, state: await getSiteState() });
+
+      const publishResult = await runCommand(publishCommand);
+      jsonResponse(res, 200, {
+        ok: true,
+        result: {
+          ok: publishResult.ok,
+          code: publishResult.code,
+          command: publishCommand,
+          stdout: `${buildResult.stdout}${publishResult.stdout}`,
+          stderr: `${buildResult.stderr}${publishResult.stderr}`,
+          steps: [
+            { name: "Build", ...buildResult },
+            { name: "Publish", ...publishResult }
+          ]
+        },
+        state: await getSiteState()
+      });
       return;
     }
 

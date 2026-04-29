@@ -4,7 +4,8 @@ date: "2026-03-27"
 uploadDate: "2026-03-27"
 topic: "叙事理论"
 subtopic: "生命叙事"
-tags: []
+tags: 
+  - "life story"
 draft: false
 ---
 

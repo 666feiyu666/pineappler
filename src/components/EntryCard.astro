@@ -1,5 +1,6 @@
 ---
 import { formatDate } from "../lib/content";
+import TagList from "./TagList.astro";
 
 interface Props {
   href: string;
@@ -10,6 +11,8 @@ interface Props {
   tags?: string[];
   badge?: string;
   linkLabel?: string;
+  externalLink?: string;
+  externalLinkLabel?: string;
   imagePath?: string;
   imageAlt?: string;
 }
@@ -23,6 +26,8 @@ const {
   tags = [],
   badge,
   linkLabel = "Open",
+  externalLink,
+  externalLinkLabel = "Visit project",
   imagePath,
   imageAlt
 } = Astro.props;
@@ -44,11 +49,12 @@ const metaText = meta.filter(Boolean).join(" · ");
     <a href={href}>{title}</a>
   </h3>
   <p>{description}</p>
-  {tags.length > 0 && (
-    <ul class="tag-list" aria-label="Tags">
-      {tags.map((tag) => <li>{tag}</li>)}
-    </ul>
+  {externalLink && (
+    <a class="external-link" href={externalLink} target="_blank" rel="noreferrer">
+      {externalLinkLabel}
+    </a>
   )}
+  <TagList tags={tags} />
   <div class="card-footer">
     <span class="entry-date">{formatDate(date)}</span>
     <span class="card-cta">{linkLabel}</span>

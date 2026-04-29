@@ -1,7 +1,7 @@
 ---
 import { getCollection } from "astro:content";
 import Layout from "../components/Layout.astro";
-import { homeImage, homeQuote, siteMeta } from "../data/site";
+import { homeImage, homeNews, homeQuote, siteMeta } from "../data/site";
 import { publishedEntries, sortEntries } from "../lib/content";
 
 const latestNote = sortEntries(publishedEntries(await getCollection("notes")))[0];
@@ -49,6 +49,22 @@ const latestProject = sortEntries(publishedEntries(await getCollection("projects
         <a href="/writing">Writing</a>
         <a href="/projects">Projects</a>
       </div>
+
+      <section class="home-news" aria-label="Latest news">
+        <div class="home-news-head">
+          <p class="eyebrow">News</p>
+          <h2>Latest updates</h2>
+        </div>
+        {
+          homeNews.length ? (
+            <ul class="plain-list home-news-list">
+              {homeNews.map((item) => <li>{item}</li>)}
+            </ul>
+          ) : (
+            <p class="home-stage-intro">这里会记录最近的网站更新、笔记改动与新的项目进展。</p>
+          )
+        }
+      </section>
     </div>
   </section>
 

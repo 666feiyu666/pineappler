@@ -1,13 +1,12 @@
 ---
-title: 皮亚斯《电子游戏世界》笔记（2）Adventure
-description: 从网络结构、空间遍历到《Edith Finch》，重新理解冒险游戏世界的组织方式。
-date: 2026-04-23
-uploadDate: 2026-04-25
-topic: 游戏分析
-tags:
-  - 游戏研究
-  - 阅读笔记
-  - 冒险游戏
+title: "皮亚斯《电子游戏世界》笔记（2）Adventure"
+description: "从网络结构、空间遍历到《Edith Finch》，重新理解冒险游戏世界的组织方式。"
+date: "2026-04-23"
+uploadDate: "2026-04-25"
+topic: "游戏分析"
+tags: 
+  - "电子游戏"
+  - "网络科学"
 draft: false
 ---
 
