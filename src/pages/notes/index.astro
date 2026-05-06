@@ -8,7 +8,6 @@ import {
   orderedTaxonomyValues,
   publishedEntries,
   sortEntries,
-  taxonomyLabel,
   toParam
 } from "../../lib/content";
 
@@ -36,7 +35,7 @@ const topics = orderedTaxonomyValues(notes.map((entry) => entry.data.topic), "no
           title={entry.data.title}
           description={entry.data.description}
           date={entry.data.uploadDate ?? entry.data.date}
-          meta={[taxonomyLabel(entry.data.topic, entry.data.subtopic)]}
+          meta={[entry.data.topic]}
           tags={entry.data.tags}
         />
       ))}

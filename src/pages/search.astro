@@ -6,7 +6,6 @@ import {
   excerptText,
   publishedEntries,
   sortEntries,
-  taxonomyLabel,
   toPlainText
 } from "../lib/content";
 
@@ -22,13 +21,12 @@ const searchEntries = [
     description: entry.data.description,
     tags: entry.data.tags,
     href: `/notes/${entry.slug}/`,
-    taxonomy: taxonomyLabel(entry.data.topic, entry.data.subtopic),
+    taxonomy: entry.data.topic,
     snippet: excerptText(entry.body || entry.data.description),
     searchText: [
       entry.data.title,
       entry.data.description,
       entry.data.topic,
-      entry.data.subtopic,
       ...entry.data.tags,
       toPlainText(entry.body)
     ]
@@ -42,13 +40,12 @@ const searchEntries = [
     description: entry.data.description,
     tags: entry.data.tags,
     href: `/writing/${entry.slug}/`,
-    taxonomy: taxonomyLabel(entry.data.type, entry.data.subtype),
+    taxonomy: entry.data.type,
     snippet: excerptText(entry.body || entry.data.description),
     searchText: [
       entry.data.title,
       entry.data.description,
       entry.data.type,
-      entry.data.subtype,
       ...entry.data.tags,
       toPlainText(entry.body)
     ]
@@ -62,13 +59,12 @@ const searchEntries = [
     description: entry.data.description,
     tags: entry.data.tags,
     href: `/projects/${entry.slug}/`,
-    taxonomy: taxonomyLabel(entry.data.category, entry.data.subcategory),
+    taxonomy: entry.data.category,
     snippet: excerptText(entry.body || entry.data.description),
     searchText: [
       entry.data.title,
       entry.data.description,
       entry.data.category,
-      entry.data.subcategory,
       entry.data.status,
       ...entry.data.tags,
       toPlainText(entry.body)

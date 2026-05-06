@@ -8,7 +8,6 @@ import {
   orderedTaxonomyValues,
   publishedEntries,
   sortEntries,
-  taxonomyLabel,
   toParam
 } from "../../lib/content";
 
@@ -36,7 +35,7 @@ const types = orderedTaxonomyValues(entries.map((entry) => entry.data.type), "wr
           title={entry.data.title}
           description={entry.data.description}
           date={entry.data.date}
-          meta={[taxonomyLabel(entry.data.type, entry.data.subtype)]}
+          meta={[entry.data.type]}
           tags={entry.data.tags}
         />
       ))}

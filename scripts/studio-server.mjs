@@ -6,7 +6,6 @@ import {
   readFile,
   readdir,
   rm,
-  stat,
   writeFile
 } from "node:fs/promises";
 import path from "node:path";
@@ -364,28 +363,22 @@ function sanitizeAssetName(fileName, fallback = "asset.png") {
   return `${sanitizeAssetStem(baseName, path.basename(fallback, safeExt))}${safeExt}`;
 }
 
-function notePathParts(topic, subtopic = "") {
-  return [topic, subtopic].filter(Boolean).map((value) => toParam(value));
+function notePathParts(topic) {
+  return [topic].filter(Boolean).map((value) => toParam(value));
 }
 
-function writingPathParts(type, subtype = "") {
-  return [type, subtype].filter(Boolean).map((value) => toParam(value));
+function writingPathParts(type) {
+  return [type].filter(Boolean).map((value) => toParam(value));
 }
 
-async function ensureNoteTaxonomy(topic, subtopic = "") {
+async function ensureNoteTaxonomy(topic) {
   const topicDir = path.join(rootDir, "content-source", "notes", toParam(topic));
   await ensureLabelFile(topicDir, topic);
-  if (subtopic) {
-    await ensureLabelFile(path.join(topicDir, toParam(subtopic)), subtopic);
-  }
 }
 
-async function ensureWritingTaxonomy(type, subtype = "") {
+async function ensureWritingTaxonomy(type) {
   const typeDir = path.join(rootDir, "content-source", "writing", toParam(type));
   await ensureLabelFile(typeDir, type);
-  if (subtype) {
-    await ensureLabelFile(path.join(typeDir, toParam(subtype)), subtype);
-  }
 }
 
 function isLocalLibraryPath(filePath, prefix = "/library/") {
@@ -571,7 +564,7 @@ async function saveNote(payload) {
   const noteStem = payload.pathKey ? path.basename(payload.pathKey, ".md") : slugify(payload.title);
   const rewrittenBody = await persistMarkdownImages(payload.body.trim(), payload.images, [
     "notes",
-    ...notePathParts(payload.topic, payload.subtopic),
+    ...notePathParts(payload.topic),
     noteStem
   ]);
   const content = frontmatter({
@@ -580,7 +573,6 @@ async function saveNote(payload) {
     date: payload.date,
     uploadDate: payload.uploadDate,
     topic: payload.topic,
-    subtopic: payload.subtopic,
     tags: payload.tags,
     draft: false
   }) + `${rewrittenBody}\n`;
@@ -591,7 +583,7 @@ async function saveNote(payload) {
         rootDir,
         "content-source",
         "notes",
-        ...notePathParts(payload.topic, payload.subtopic),
+        ...notePathParts(payload.topic),
         `${slugify(payload.title)}.md`
       );
 
@@ -599,11 +591,11 @@ async function saveNote(payload) {
     rootDir,
     "content-source",
     "notes",
-    ...notePathParts(payload.topic, payload.subtopic),
+    ...notePathParts(payload.topic),
     path.basename(targetPath)
   );
 
-  await ensureNoteTaxonomy(payload.topic, payload.subtopic);
+  await ensureNoteTaxonomy(payload.topic);
   await appendTaxonomyLabel("notesTopics", payload.topic);
   await mkdir(path.dirname(nextPath), { recursive: true });
   if (payload.pathKey && targetPath !== nextPath) {
@@ -618,18 +610,17 @@ async function importNote(payload) {
   const { data, body } = splitFrontmatter(payload.content);
   const title = payload.title || data.title || path.basename(payload.fileName || "note.md", ".md");
   const today = new Date().toISOString().slice(0, 10);
-  const subtopic = payload.subtopic || data.subtopic || "";
   const targetPath = path.join(
     rootDir,
     "content-source",
     "notes",
-    ...notePathParts(payload.topic, subtopic),
+    ...notePathParts(payload.topic),
     `${slugify(title)}.md`
   );
 
   const rewrittenBody = await persistMarkdownImages(body.trim(), payload.images, [
     "notes",
-    ...notePathParts(payload.topic, subtopic),
+    ...notePathParts(payload.topic),
     slugify(title)
   ]);
   const output = frontmatter({
@@ -638,12 +629,11 @@ async function importNote(payload) {
     date: payload.date || data.date || today,
     uploadDate: payload.uploadDate || data.uploadDate || data.date || today,
     topic: payload.topic,
-    subtopic,
     tags: payload.tags || data.tags || [],
     draft: false
   }) + `${rewrittenBody}\n`;
 
-  await ensureNoteTaxonomy(payload.topic, subtopic);
+  await ensureNoteTaxonomy(payload.topic);
   await appendTaxonomyLabel("notesTopics", payload.topic);
   await mkdir(path.dirname(targetPath), { recursive: true });
   await writeFile(targetPath, output);
@@ -669,7 +659,7 @@ async function deleteEntry(payload) {
         "public",
         "library",
         "notes",
-        ...notePathParts(data.topic || "", data.subtopic || ""),
+        ...notePathParts(data.topic || ""),
         path.basename(targetPath, ".md")
       ),
       { recursive: true, force: true }
@@ -683,7 +673,7 @@ async function deleteEntry(payload) {
         "public",
         "library",
         "writing",
-        ...writingPathParts(data.type || "", data.subtype || ""),
+        ...writingPathParts(data.type || ""),
         path.basename(targetPath, ".md")
       ),
       { recursive: true, force: true }
@@ -710,18 +700,17 @@ async function importWriting(payload) {
   const { data, body } = splitFrontmatter(payload.content);
   const title = payload.title || data.title || path.basename(payload.fileName || "writing.md", ".md");
   const today = new Date().toISOString().slice(0, 10);
-  const subtype = payload.subtype || data.subtype || "";
   const targetPath = path.join(
     rootDir,
     "content-source",
     "writing",
-    ...writingPathParts(payload.type, subtype),
+    ...writingPathParts(payload.type),
     `${slugify(title)}.md`
   );
 
   const rewrittenBody = await persistMarkdownImages(body.trim(), payload.images, [
     "writing",
-    ...writingPathParts(payload.type, subtype),
+    ...writingPathParts(payload.type),
     slugify(title)
   ]);
   const output = frontmatter({
@@ -729,12 +718,11 @@ async function importWriting(payload) {
     description: payload.description || data.description || "",
     date: payload.date || data.date || today,
     type: payload.type,
-    subtype,
     tags: payload.tags || data.tags || [],
     draft: false
   }) + `${rewrittenBody}\n`;
 
-  await ensureWritingTaxonomy(payload.type, subtype);
+  await ensureWritingTaxonomy(payload.type);
   await appendTaxonomyLabel("writingTypes", payload.type);
   await mkdir(path.dirname(targetPath), { recursive: true });
   await writeFile(targetPath, output);
@@ -749,14 +737,14 @@ async function saveWriting(payload) {
         rootDir,
         "content-source",
         "writing",
-        ...writingPathParts(payload.type, payload.subtype),
+        ...writingPathParts(payload.type),
         `${slugify(payload.title)}.md`
       );
 
   const writingStem = payload.pathKey ? path.basename(payload.pathKey, ".md") : slugify(payload.title);
   const rewrittenBody = await persistMarkdownImages(payload.body.trim(), payload.images, [
     "writing",
-    ...writingPathParts(payload.type, payload.subtype),
+    ...writingPathParts(payload.type),
     writingStem
   ]);
 
@@ -765,7 +753,6 @@ async function saveWriting(payload) {
     description: payload.description,
     date: payload.date,
     type: payload.type,
-    subtype: payload.subtype,
     tags: payload.tags,
     draft: false
   }) + `${rewrittenBody}\n`;
@@ -774,11 +761,11 @@ async function saveWriting(payload) {
     rootDir,
     "content-source",
     "writing",
-    ...writingPathParts(payload.type, payload.subtype),
+    ...writingPathParts(payload.type),
     path.basename(targetPath)
   );
 
-  await ensureWritingTaxonomy(payload.type, payload.subtype);
+  await ensureWritingTaxonomy(payload.type);
   await appendTaxonomyLabel("writingTypes", payload.type);
   await mkdir(path.dirname(nextPath), { recursive: true });
   if (payload.pathKey && targetPath !== nextPath) {
@@ -815,7 +802,6 @@ async function saveProject(payload) {
     description: payload.description,
     date: payload.date,
     category: payload.category || "未分类",
-    subcategory: payload.subcategory,
     tags: payload.tags,
     slug: payload.slug || undefined,
     draft: false,

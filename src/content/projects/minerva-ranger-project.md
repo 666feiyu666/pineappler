@@ -4,7 +4,6 @@ description: "一个游戏化效率应用"
 date: "2026-04-20"
 slug: "reading-lab"
 category: "游戏化"
-subcategory: "效率软件"
 tags:
   - "学习"
   - "游戏化"

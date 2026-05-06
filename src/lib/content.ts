@@ -69,18 +69,6 @@ export function orderedTaxonomyValues(
   return orderValues(values, taxonomyOrder?.[key] || []);
 }
 
-export function taxonomyLabel(primary: string, secondary?: string) {
-  return secondary ? `${primary} / ${secondary}` : primary;
-}
-
-export function uniqueNonEmpty(values: Array<string | undefined | null>) {
-  return uniqueValues(values.filter(Boolean) as string[]);
-}
-
-export function taxonomyPathSegments(primary: string, secondary?: string) {
-  return [primary, secondary].filter(Boolean) as string[];
-}
-
 export function groupByLabel<T>(items: T[], getLabel: (item: T) => string) {
   const groups = new Map<string, T[]>();
 

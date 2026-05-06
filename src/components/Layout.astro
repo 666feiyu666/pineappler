@@ -30,6 +30,7 @@ const projectCategories = orderedTaxonomyValues(
   projects.map((entry) => entry.data.category),
   "projectCategories"
 );
+const currentYear = new Date().getFullYear();
 ---
 
 <!doctype html>
@@ -44,8 +45,10 @@ const projectCategories = orderedTaxonomyValues(
     <div class="page-shell">
       <header class="site-header">
         <div class="brand-block">
+          {siteMeta.location && <p class="brand-kicker">{siteMeta.location}</p>}
           <a class="site-title" href="/">{siteMeta.title}</a>
           <p class="site-tagline">{siteMeta.author}</p>
+          <p class="brand-description">{siteMeta.description}</p>
         </div>
 
         <nav aria-label="Main navigation" class="site-nav" data-nav>
@@ -143,6 +146,15 @@ const projectCategories = orderedTaxonomyValues(
       <main class="page-content">
         <slot />
       </main>
+
+      <footer class="site-footer">
+        <p>
+          © {currentYear} {siteMeta.author}. 除非另有说明，本站原创内容归作者所有；引用或非商业分享请注明作者与原文链接。
+        </p>
+        <p>
+          如果希望转载较长内容、用于课程材料、出版物、商业项目或其他公开用途，请联系我确认授权方式ovo。本站笔记为个人阶段性记录，不构成专业建议。
+        </p>
+      </footer>
     </div>
 
     <script is:inline>

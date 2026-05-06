@@ -88,7 +88,7 @@ const studioEnabled = import.meta.env.DEV;
             <div class="page-intro">
               <p class="eyebrow">Studio / Notes</p>
               <h1>Notes</h1>
-              <p class="page-intro-copy">管理 topic、sub-topic、已有 notes、新建与导入操作。</p>
+              <p class="page-intro-copy">管理 topic、已有 notes、新建与导入操作。</p>
             </div>
 
             <div class="studio-grid studio-grid-wide">
@@ -126,7 +126,6 @@ const studioEnabled = import.meta.env.DEV;
                 </div>
                 <div class="studio-fields">
                   <label><span>Topic</span><input name="topic" list="note-topic-list" required /></label>
-                  <label><span>Sub-topic</span><input name="subtopic" placeholder="例如：生命叙事" /></label>
                   <label><span>Markdown file</span><input name="file" type="file" accept=".md,text/markdown" required /></label>
                   <label><span>Supporting images</span><input name="images" type="file" accept=".jpg,.jpeg,.png,.webp,.gif,image/jpeg,image/png,image/webp,image/gif" multiple /></label>
                 </div>
@@ -146,7 +145,6 @@ const studioEnabled = import.meta.env.DEV;
               <div class="studio-fields">
                 <label><span>Title</span><input name="title" required /></label>
                 <label><span>Topic</span><input name="topic" list="note-topic-list" required /></label>
-                <label><span>Sub-topic</span><input name="subtopic" placeholder="例如：生命叙事" /></label>
                 <label><span>Description</span><textarea name="description" rows="3"></textarea></label>
                 <label class="studio-tag-field">
                   <span>Tags</span>
@@ -172,7 +170,7 @@ const studioEnabled = import.meta.env.DEV;
             <div class="page-intro">
               <p class="eyebrow">Studio / Writing</p>
               <h1>Writing</h1>
-              <p class="page-intro-copy">管理类型、sub-type、Markdown 条目，以及已有 writing。</p>
+              <p class="page-intro-copy">管理类型、Markdown 条目，以及已有 writing。</p>
             </div>
 
             <div class="studio-grid studio-grid-wide">
@@ -210,7 +208,6 @@ const studioEnabled = import.meta.env.DEV;
                 </div>
                 <div class="studio-fields">
                   <label><span>Type</span><input name="type" list="writing-type-list" required /></label>
-                  <label><span>Sub-type</span><input name="subtype" placeholder="例如：生命叙事" /></label>
                   <label><span>Markdown file</span><input name="file" type="file" accept=".md,text/markdown" required /></label>
                   <label><span>Referenced images</span><input name="images" type="file" accept=".jpg,.jpeg,.png,.webp,.gif,image/jpeg,image/png,image/webp,image/gif" multiple /></label>
                 </div>
@@ -230,7 +227,6 @@ const studioEnabled = import.meta.env.DEV;
               <div class="studio-fields">
                 <label><span>Title</span><input name="title" required /></label>
                 <label><span>Type</span><input name="type" list="writing-type-list" required /></label>
-                <label><span>Sub-type</span><input name="subtype" placeholder="例如：生命叙事" /></label>
                 <label><span>Description</span><textarea name="description" rows="3"></textarea></label>
                 <label class="studio-tag-field">
                   <span>Tags</span>
@@ -273,7 +269,7 @@ const studioEnabled = import.meta.env.DEV;
             <div class="page-intro">
               <p class="eyebrow">Studio / Projects</p>
               <h1>Projects</h1>
-              <p class="page-intro-copy">管理 project 的 category / subcategory，并编辑项目页面内容。</p>
+              <p class="page-intro-copy">管理 project 的 category，并编辑项目页面内容。</p>
             </div>
 
             <div class="studio-grid studio-grid-wide">
@@ -309,7 +305,6 @@ const studioEnabled = import.meta.env.DEV;
               <div class="studio-fields">
                 <label><span>Title</span><input name="title" required /></label>
                 <label><span>Category</span><input name="category" required placeholder="例如：研究工具" /></label>
-                <label><span>Subcategory</span><input name="subcategory" placeholder="例如：阅读工作流" /></label>
                 <label><span>Description</span><textarea name="description" rows="3"></textarea></label>
                 <label><span>Status</span><input name="status" placeholder="In progress / Planned / Published" /></label>
                 <label><span>Link</span><input name="link" placeholder="https://example.com" /></label>

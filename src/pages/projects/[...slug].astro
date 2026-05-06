@@ -5,8 +5,7 @@ import TagList from "../../components/TagList.astro";
 import {
   formatDate,
   formatExternalLinkLabel,
-  publishedEntries,
-  taxonomyLabel
+  publishedEntries
 } from "../../lib/content";
 
 export async function getStaticPaths() {
@@ -22,10 +21,15 @@ const { Content } = await entry.render();
 ---
 
 <Layout title={`${entry.data.title} | Projects`} description={entry.data.description}>
-  <article class="content-block">
-    <p class="entry-date">{formatDate(entry.data.date)}</p>
-    <h1 class="page-title">{entry.data.title}</h1>
-    <p class="page-summary">{entry.data.description}</p>
+  <article class="content-block detail-article">
+    <div class="detail-hero">
+      <p class="detail-kicker">
+        {entry.data.category} · {entry.data.status} · {formatDate(entry.data.date)}
+      </p>
+      <h1 class="page-title">{entry.data.title}</h1>
+      <p class="page-summary">{entry.data.description}</p>
+      <TagList tags={entry.data.tags} />
+    </div>
     {entry.data.imagePath && (
       <figure class="project-hero">
         <img src={entry.data.imagePath} alt={entry.data.imageAlt || entry.data.title} loading="eager" />
@@ -34,7 +38,7 @@ const { Content } = await entry.render();
     <div class="meta-grid">
       <div>
         <span>Category</span>
-        <strong>{taxonomyLabel(entry.data.category, entry.data.subcategory)}</strong>
+        <strong>{entry.data.category}</strong>
       </div>
       <div>
         <span>Status</span>
@@ -49,7 +53,6 @@ const { Content } = await entry.render();
         </div>
       )}
     </div>
-    <TagList tags={entry.data.tags} />
     <div class="prose-block">
       <Content />
     </div>

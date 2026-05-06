@@ -9,7 +9,6 @@ import {
   orderedTaxonomyValues,
   publishedEntries,
   sortEntries,
-  taxonomyLabel,
   toParam
 } from "../../lib/content";
 
@@ -37,7 +36,7 @@ const categories = orderedTaxonomyValues(entries.map((entry) => entry.data.categ
           title={entry.data.title}
           description={entry.data.description}
           date={entry.data.date}
-          meta={[taxonomyLabel(entry.data.category, entry.data.subcategory), entry.data.status]}
+          meta={[entry.data.category, entry.data.status]}
           tags={entry.data.tags}
           externalLink={entry.data.link}
           externalLinkLabel={formatExternalLinkLabel(entry.data.link)}

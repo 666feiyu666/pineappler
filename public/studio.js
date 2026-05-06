@@ -244,10 +244,6 @@ function fillDatalist(target, values) {
   target.innerHTML = values.map((value) => `<option value="${value}"></option>`).join("");
 }
 
-function taxonomyLabel(primary, secondary) {
-  return [primary, secondary].filter(Boolean).join(" / ");
-}
-
 const taxonomyConfigs = {
   topic: {
     stateKey: "topics",
@@ -358,15 +354,15 @@ function renderEntryList(target, entries, kind) {
 
     const meta = document.createElement("span");
     if (kind === "note") {
-      meta.textContent = [taxonomyLabel(entry.data.topic, entry.data.subtopic), entry.data.uploadDate || entry.data.date]
+      meta.textContent = [entry.data.topic, entry.data.uploadDate || entry.data.date]
         .filter(Boolean)
         .join(" · ");
     } else if (kind === "writing") {
-      meta.textContent = [taxonomyLabel(entry.data.type, entry.data.subtype), entry.data.date]
+      meta.textContent = [entry.data.type, entry.data.date]
         .filter(Boolean)
         .join(" · ");
     } else {
-      meta.textContent = [taxonomyLabel(entry.data.category || "未分类", entry.data.subcategory), entry.data.status, entry.data.date]
+      meta.textContent = [entry.data.category || "未分类", entry.data.status, entry.data.date]
         .filter(Boolean)
         .join(" · ");
     }
@@ -865,7 +861,6 @@ function resetNoteForm() {
   form.pathKey.value = "";
   form.date.value = today;
   form.uploadDate.value = today;
-  form.subtopic.value = "";
   form.images.value = "";
   resetTagInput("note");
   setEditorTitle("note", "Note editor");
@@ -876,7 +871,6 @@ function resetWritingForm() {
   form.reset();
   form.pathKey.value = "";
   form.date.value = today;
-  form.subtype.value = "";
   resetMarkdownEditor("writing");
   resetTagInput("writing");
   setEditorTitle("writing", "Writing editor");
@@ -890,7 +884,6 @@ function resetProjectForm() {
   form.existingImagePath.value = "";
   form.date.value = today;
   form.category.value = "未分类";
-  form.subcategory.value = "";
   form.status.value = "In progress";
   resetMarkdownEditor("project");
   resetTagInput("project");
@@ -970,7 +963,6 @@ function loadNote(pathKey) {
   ui.noteForm.pathKey.value = entry.pathKey;
   ui.noteForm.title.value = entry.data.title || "";
   ui.noteForm.topic.value = entry.data.topic || "";
-  ui.noteForm.subtopic.value = entry.data.subtopic || "";
   ui.noteForm.description.value = entry.data.description || "";
   setTagInputValue("note", entry.data.tags || []);
   ui.noteForm.date.value = entry.data.date || today;
@@ -986,7 +978,6 @@ function loadWriting(pathKey) {
   ui.writingForm.pathKey.value = entry.pathKey;
   ui.writingForm.title.value = entry.data.title || "";
   ui.writingForm.type.value = entry.data.type || "";
-  ui.writingForm.subtype.value = entry.data.subtype || "";
   ui.writingForm.description.value = entry.data.description || "";
   setTagInputValue("writing", entry.data.tags || []);
   ui.writingForm.date.value = entry.data.date || today;
@@ -1003,7 +994,6 @@ function loadProject(pathKey) {
   ui.projectForm.slug.value = entry.data.slug || entry.slug || "";
   ui.projectForm.title.value = entry.data.title || "";
   ui.projectForm.category.value = entry.data.category || "未分类";
-  ui.projectForm.subcategory.value = entry.data.subcategory || "";
   ui.projectForm.description.value = entry.data.description || "";
   ui.projectForm.status.value = entry.data.status || "In progress";
   ui.projectForm.link.value = entry.data.link || "";
@@ -1141,7 +1131,6 @@ async function importNote() {
     method: "POST",
     body: JSON.stringify({
       topic: form.topic.value.trim(),
-      subtopic: form.subtopic.value.trim(),
       title: file.name.replace(/\.md$/i, ""),
       fileName: file.name,
       content: await file.text(),
@@ -1165,7 +1154,6 @@ async function saveNote() {
       pathKey: form.pathKey.value || "",
       title: form.title.value.trim(),
       topic: form.topic.value.trim(),
-      subtopic: form.subtopic.value.trim(),
       description: form.description.value.trim(),
       tags: getTagInputValue("note"),
       date: form.date.value || today,
@@ -1202,7 +1190,6 @@ async function importWriting() {
     method: "POST",
     body: JSON.stringify({
       type: form.type.value.trim(),
-      subtype: form.subtype.value.trim(),
       title: file.name.replace(/\.md$/i, ""),
       fileName: file.name,
       content: await file.text(),
@@ -1227,7 +1214,6 @@ async function saveWriting() {
       pathKey: form.pathKey.value || "",
       title: form.title.value.trim(),
       type: form.type.value.trim(),
-      subtype: form.subtype.value.trim(),
       description: form.description.value.trim(),
       tags: getTagInputValue("writing"),
       date: form.date.value || today,
@@ -1254,7 +1240,6 @@ async function saveProject() {
       slug: form.slug.value.trim(),
       title: form.title.value.trim(),
       category: form.category.value.trim(),
-      subcategory: form.subcategory.value.trim(),
       description: form.description.value.trim(),
       status: form.status.value.trim(),
       link: form.link.value.trim(),

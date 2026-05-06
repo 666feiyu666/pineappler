@@ -1,10 +1,10 @@
 ---
-title: "McAdams笔记（1）《我们赖以生存的故事》"
+title: "McAdams《我们赖以生存的故事》笔记（1）"
 date: "2026-03-27"
 uploadDate: "2026-03-27"
-topic: "叙事理论"
-subtopic: "生命叙事"
+topic: "阅读积累"
 tags: 
+  - "生命叙事"
   - "life story"
 draft: false
 ---

@@ -41,12 +41,7 @@ async function importMarkdown(sourceFile, options) {
   const tags = options.tags ? ensureArray(options.tags) : ensureArray(data.tags);
   const draft = options.draft ? options.draft === "true" : Boolean(data.draft);
   const type = options.type;
-  const subtype = options.subtype || data.subtype || "";
-  const typeDir = path.join(
-    writingRoot,
-    toParam(type),
-    ...(subtype ? [toParam(subtype)] : [])
-  );
+  const typeDir = path.join(writingRoot, toParam(type));
   const fileName = `${slugifyFilename(options.slug || title, sourceFile)}.md`;
 
   await mkdir(typeDir, { recursive: true });
@@ -56,7 +51,6 @@ async function importMarkdown(sourceFile, options) {
     description,
     date,
     type,
-    subtype,
     tags,
     draft,
     sourcePath: path.relative(rootDir, sourceFile)
@@ -69,7 +63,7 @@ async function importMarkdown(sourceFile, options) {
 async function main() {
   const options = readArgs();
   if (!options.source || !options.type) {
-    throw new Error("Usage: npm run import:writing -- --source <file.md> --type <type> [--subtype <subtype>]");
+    throw new Error("Usage: npm run import:writing -- --source <file.md> --type <type>");
   }
 
   const sourceFile = path.resolve(rootDir, options.source);

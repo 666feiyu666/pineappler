@@ -4,11 +4,10 @@ description: "HPS框架指出，游戏再现过去的方式，是通过为拥有
 date: "2026-04-28"
 uploadDate: "2026-04-28"
 topic: "游戏设计"
-subtopic: "模拟经营"
 tags: 
-  - "游戏设计"
-  - "模拟经营"
   - "电子游戏"
+  - "游戏设计"
+  - "模拟"
 draft: false
 ---
 

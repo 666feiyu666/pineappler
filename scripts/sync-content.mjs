@@ -71,6 +71,11 @@ async function readLabel(dirPath, fallback = "") {
   }
 }
 
+function outputMarkdownName(data, fallbackTitle, sourcePath) {
+  const explicitSlug = path.basename(String(data.slug || "").trim().replace(/\.md$/i, ""));
+  return `${explicitSlug || slugifyFilename(fallbackTitle, sourcePath)}.md`;
+}
+
 async function syncNotes() {
   const files = (await collectMarkdownFiles(sources.notes)).sort((left, right) =>
     left.localeCompare(right)
@@ -88,15 +93,13 @@ async function syncNotes() {
     const date = data.date || formatDate(fileInfo.mtime);
     const uploadDate = data.uploadDate || formatDate(fileInfo.birthtime || fileInfo.mtime);
     const relativeDir = path.relative(sources.notes, path.dirname(filePath));
-    const [topicParam = "", subtopicParam = ""] = relativeDir.split(path.sep).filter(Boolean);
+    const [topicParam = ""] = relativeDir.split(path.sep).filter(Boolean);
     const topicDir = topicParam ? path.join(sources.notes, topicParam) : "";
-    const subtopicDir = subtopicParam ? path.join(topicDir, subtopicParam) : "";
     const topic = data.topic || (await readLabel(topicDir, topicParam)) || getFolderLabel(filePath, sources.notes) || "未分类";
-    const subtopic = data.subtopic || (subtopicParam ? await readLabel(subtopicDir, subtopicParam) : "");
     const tags = ensureArray(data.tags);
     const draft = typeof data.draft === "boolean" ? data.draft : false;
     const sourcePath = path.relative(rootDir, filePath);
-    const outputName = `${slugifyFilename(data.slug || fallbackTitle, sourcePath)}.md`;
+    const outputName = outputMarkdownName(data, fallbackTitle, sourcePath);
 
     const frontmatter = serializeFrontmatter({
       title,
@@ -104,7 +107,7 @@ async function syncNotes() {
       date,
       uploadDate,
       topic,
-      subtopic,
+      slug: data.slug || undefined,
       tags,
       draft,
       sourcePath
@@ -132,22 +135,20 @@ async function syncWriting() {
     const description = data.description || extractDescription(body, title);
     const date = data.date || formatDate(fileInfo.mtime);
     const relativeDir = path.relative(sources.writing, path.dirname(filePath));
-    const [typeParam = "", subtypeParam = ""] = relativeDir.split(path.sep).filter(Boolean);
+    const [typeParam = ""] = relativeDir.split(path.sep).filter(Boolean);
     const typeDir = typeParam ? path.join(sources.writing, typeParam) : "";
-    const subtypeDir = subtypeParam ? path.join(typeDir, subtypeParam) : "";
     const type = data.type || (await readLabel(typeDir, typeParam)) || getFolderLabel(filePath, sources.writing) || "随笔";
-    const subtype = data.subtype || (subtypeParam ? await readLabel(subtypeDir, subtypeParam) : "");
     const tags = ensureArray(data.tags);
     const draft = typeof data.draft === "boolean" ? data.draft : false;
     const sourcePath = path.relative(rootDir, filePath);
-    const outputName = `${slugifyFilename(data.slug || fallbackTitle, sourcePath)}.md`;
+    const outputName = outputMarkdownName(data, fallbackTitle, sourcePath);
 
     const frontmatter = serializeFrontmatter({
       title,
       description,
       date,
       type,
-      subtype,
+      slug: data.slug || undefined,
       tags,
       draft,
       sourcePath

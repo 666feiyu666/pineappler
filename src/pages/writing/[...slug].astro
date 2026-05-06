@@ -2,7 +2,7 @@
 import { getCollection } from "astro:content";
 import Layout from "../../components/Layout.astro";
 import TagList from "../../components/TagList.astro";
-import { formatDate, publishedEntries, taxonomyLabel } from "../../lib/content";
+import { formatDate, publishedEntries } from "../../lib/content";
 
 export async function getStaticPaths() {
   const entries = publishedEntries(await getCollection("writing"));
@@ -17,14 +17,15 @@ const { Content } = await entry.render();
 ---
 
 <Layout title={`${entry.data.title} | Writing`} description={entry.data.description}>
-  <article class="content-block">
-    <p class="entry-date">{taxonomyLabel(entry.data.type, entry.data.subtype)}</p>
-    <h1 class="page-title">{entry.data.title}</h1>
-    <p class="page-summary">{entry.data.description}</p>
-    <div class="detail-actions">
-      <span class="entry-date">{formatDate(entry.data.date)}</span>
+  <article class="content-block detail-article">
+    <div class="detail-hero">
+      <p class="detail-kicker">
+        {entry.data.type} · {formatDate(entry.data.date)}
+      </p>
+      <h1 class="page-title">{entry.data.title}</h1>
+      <p class="page-summary">{entry.data.description}</p>
+      <TagList tags={entry.data.tags} />
     </div>
-    <TagList tags={entry.data.tags} />
     <div class="prose-block">
       <Content />
     </div>
